@@ -1,11 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FilePlus, History, Users, Settings, LogOut, CheckCircle, FileText, PieChart } from 'lucide-react';
+import { LayoutDashboard, FilePlus, History, Users, Settings, LogOut, CheckCircle, FileText, PieChart, Download } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 
 const Sidebar = ({ className, onLinkClick }) => {
     const { logout } = useAuth();
+    const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+    useEffect(() => {
+        const handler = (e) => {
+            e.preventDefault();
+            setDeferredPrompt(e);
+        };
+        window.addEventListener('beforeinstallprompt', handler);
+        return () => window.removeEventListener('beforeinstallprompt', handler);
+    }, []);
+
+    const handleInstallClick = async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            setDeferredPrompt(null);
+        }
+    };
 
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -43,7 +62,16 @@ const Sidebar = ({ className, onLinkClick }) => {
                 ))}
             </nav>
 
-            <div className="p-4 border-t border-gray-100">
+            <div className="p-4 border-t border-gray-100 space-y-2">
+                {deferredPrompt && (
+                    <button
+                        onClick={handleInstallClick}
+                        className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-all"
+                    >
+                        <Download size={20} className="stroke-[1.5]" />
+                        Install App
+                    </button>
+                )}
                 <button
                     onClick={logout}
                     className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-red-600 hover:bg-red-50 transition-all"

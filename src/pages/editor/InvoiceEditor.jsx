@@ -32,8 +32,8 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
 
     // --- State Management ---
     const [docType, setDocType] = useState(startType);
-    const [themeColor, setThemeColor] = useState(initialData?.themeColor || (startType === 'Receipt' ? '#059669' : '#4f46e5'));
-    const [currency, setCurrency] = useState(initialData?.currency || user?.currency || '$');
+    const [templateId, setTemplateId] = useState(initialData?.templateId || 'professional');
+    const [currency, setCurrency] = useState(initialData?.currency || user?.user_metadata?.currency || '$');
     const [logo, setLogo] = useState(initialData?.logo || null);
 
     // Document Data
@@ -57,10 +57,10 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
         date: new Date().toISOString().slice(0, 10),
         dueDate: new Date(Date.now() + 12096e5).toISOString().slice(0, 10), // +14 days
         sender: {
-            name: user?.name || '',
+            name: user?.user_metadata?.full_name || user?.user_metadata?.name || '',
             email: user?.email || '',
-            address: user?.address || '',
-            phone: user?.phone || ''
+            address: user?.user_metadata?.address || '',
+            phone: user?.user_metadata?.phone || ''
         },
         recipient: {
             name: '',
@@ -150,7 +150,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 discount: docData.discount,
                 total: total,
                 currency: currency,
-                theme_color: themeColor,
+                template_id: templateId,
                 logo: logo,
                 status: 'Pending',
                 updated_at: new Date().toISOString()
@@ -239,7 +239,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 state: {
                     docData: { ...docData, id: savedDoc.id },
                     docType,
-                    themeColor,
+                    templateId,
                     currency,
                     logo
                 }
@@ -309,9 +309,30 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                                         </div>
                                     )}
                                 </div>
-                                <div className="space-y-3">
-                                    <SidebarInput label="Theme Color" type="color" value={themeColor} onChange={setThemeColor} />
+                                <div className="space-y-4">
                                     <SidebarInput label="Currency Symbol" value={currency} onChange={setCurrency} />
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Style Template</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {[
+                                                { id: 'professional', label: 'Pro', color: 'bg-slate-600' },
+                                                { id: 'tech', label: 'Tech', color: 'bg-emerald-500' },
+                                                { id: 'business', label: 'Biz', color: 'bg-blue-800' },
+                                                { id: 'creative', label: 'Fun', color: 'bg-fuchsia-500' },
+                                                { id: 'minimal', label: 'Min', color: 'bg-black' }
+                                            ].map(t => (
+                                                <button
+                                                    key={t.id}
+                                                    onClick={() => setTemplateId(t.id)}
+                                                    className={`p-2 text-xs font-medium rounded-lg border transition-all flex items-center gap-2 ${templateId === t.id ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600' : 'border-gray-200 hover:bg-gray-50'}`}
+                                                >
+                                                    <div className={`w-3 h-3 rounded-full ${t.color}`}></div>
+                                                    {t.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 

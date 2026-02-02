@@ -85,7 +85,7 @@ const DocumentPreview = () => {
                         docData={docData}
                         docType={docType}
                         currency={currency}
-                        themeColor={themeColor}
+                        templateId={location.state?.templateId || 'professional'}
                         logo={logo}
                     />
                 </div>
