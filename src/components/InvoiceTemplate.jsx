@@ -8,51 +8,93 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
     const sender = safeData.sender || {};
     const recipient = safeData.recipient || {};
 
+    // Standard HEX Colors for manual styling (Bypassing Tailwind v4 oklch/oklab)
+    const COLORS = {
+        white: '#ffffff',
+        black: '#000000',
+        slate900: '#0f172a',
+        slate600: '#475569',
+        emerald400: '#34d399',
+        emerald500: '#10b981',
+        blue50: '#eff6ff',
+        blue900: '#1e3a8a',
+        blue800: '#1e40af',
+        gray900: '#111827',
+        gray800: '#1f2937',
+        gray600: '#4b5563',
+        gray500: '#6b7280',
+        gray400: '#9ca3af',
+        gray200: '#e5e7eb',
+        gray100: '#f3f4f6',
+        gray50: '#f9fafb',
+        borderLight: '#e5e7eb', // gray-200
+    };
+
     // Template Configs
     const templates = {
         professional: {
             font: 'font-sans',
-            headerBg: 'bg-white',
-            headerText: 'text-gray-900',
+            style: { backgroundColor: COLORS.white },
+            headerStyle: { backgroundColor: COLORS.white },
+            headerTitleStyle: { color: COLORS.gray900 },
+            headerTextStyle: { color: COLORS.gray500 },
+            docTypeStyle: { color: '#e5e7eb' }, // gray-200
+            detailsTextStyle: { color: COLORS.gray800 },
             accent: '#475569', // Slate-600
             borderStyle: 'rounded-none',
-            labelStyle: 'uppercase tracking-wider text-xs font-semibold text-gray-500'
+            labelStyle: { textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.75rem', fontWeight: 600, color: COLORS.gray500 }
         },
         tech: {
             font: 'font-mono',
-            headerBg: 'bg-slate-900',
-            headerText: 'text-emerald-400',
+            style: { backgroundColor: COLORS.white },
+            headerStyle: { backgroundColor: COLORS.slate900 },
+            headerTitleStyle: { color: COLORS.emerald400 },
+            headerTextStyle: { color: '#cbd5e1' }, // slate-300
+            docTypeStyle: { color: 'rgba(255,255,255,0.2)' },
+            detailsTextStyle: { color: COLORS.white },
             accent: '#10b981', // Emerald-500
             borderStyle: 'rounded-none',
-            labelStyle: 'text-xs font-bold text-slate-500 uppercase'
+            labelStyle: { fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' } // slate-500
         },
         business: {
             font: 'font-serif',
-            headerBg: 'bg-blue-50',
-            headerText: 'text-blue-900',
+            style: { backgroundColor: COLORS.white },
+            headerStyle: { backgroundColor: COLORS.blue50 },
+            headerTitleStyle: { color: COLORS.blue900 },
+            headerTextStyle: { color: COLORS.gray500 },
+            docTypeStyle: { color: '#bfdbfe' }, // blue-200
+            detailsTextStyle: { color: COLORS.blue900 },
             accent: '#1e3a8a', // Blue-900
             borderStyle: 'rounded-sm',
-            labelStyle: 'uppercase tracking-wide text-xs font-bold text-blue-800/60'
+            labelStyle: { textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '0.75rem', fontWeight: 700, color: 'rgba(30, 58, 138, 0.6)' }
         },
         creative: {
             font: 'font-sans',
-            headerBg: 'bg-gradient-to-r from-purple-500 to-pink-500',
-            headerText: 'text-white',
+            style: { backgroundColor: COLORS.white },
+            headerStyle: { background: 'linear-gradient(to right, #a855f7, #ec4899)' },
+            headerTitleStyle: { color: COLORS.white },
+            headerTextStyle: { color: 'rgba(255,255,255,0.9)' },
+            docTypeStyle: { color: 'rgba(255,255,255,0.2)' },
+            detailsTextStyle: { color: COLORS.white },
             accent: '#d946ef', // Fuchsia-500
             borderStyle: 'rounded-2xl',
-            labelStyle: 'text-xs font-bold text-fuchsia-600 uppercase tracking-widest'
+            labelStyle: { fontSize: '0.75rem', fontWeight: 700, color: '#c026d3', textTransform: 'uppercase', letterSpacing: '0.1em' }
         },
         minimal: {
             font: 'font-sans',
-            headerBg: 'bg-white',
-            headerText: 'text-black',
+            style: { backgroundColor: COLORS.white },
+            headerStyle: { backgroundColor: COLORS.white },
+            headerTitleStyle: { color: COLORS.black },
+            headerTextStyle: { color: COLORS.black },
+            docTypeStyle: { color: '#e5e7eb' },
+            detailsTextStyle: { color: COLORS.black },
             accent: '#000000',
             borderStyle: 'rounded-none',
-            labelStyle: 'text-xs text-black font-medium uppercase border-b border-black pb-1 inline-block'
+            labelStyle: { fontSize: '0.75rem', color: COLORS.black, fontWeight: 500, textTransform: 'uppercase', borderBottom: '1px solid black', paddingBottom: '4px', display: 'inline-block' }
         }
     };
 
-    const style = templates[templateId] || templates.professional;
+    const currentTemplate = templates[templateId] || templates.professional;
 
     // Calculations
     const subtotal = items.reduce((acc, item) => acc + ((item.quantity || 0) * (item.price || 0)), 0);
@@ -65,50 +107,32 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
         <div
             id="document-preview"
             style={{
-                ...style.font === 'font-sans' ? { fontFamily: 'ui-sans-serif, system-ui, sans-serif' } : {},
-                ...style.font === 'font-mono' ? { fontFamily: 'ui-monospace, monospace' } : {},
-                ...style.font === 'font-serif' ? { fontFamily: 'ui-serif, serif' } : {},
-                // Force HEX colors for html2canvas compatibility
-                "--color-white": "#ffffff",
-                "--color-black": "#000000",
-                "--color-slate-50": "#f8fafc",
-                "--color-slate-100": "#f1f5f9",
-                "--color-slate-200": "#e2e8f0",
-                "--color-slate-300": "#cbd5e1",
-                "--color-slate-400": "#94a3b8",
-                "--color-slate-500": "#64748b",
-                "--color-slate-600": "#475569",
-                "--color-slate-700": "#334155",
-                "--color-slate-800": "#1e293b",
-                "--color-slate-900": "#0f172a",
-                "--color-gray-50": "#f9fafb",
-                "--color-gray-100": "#f3f4f6",
-                "--color-gray-200": "#e5e7eb",
-                "--color-gray-300": "#d1d5db",
-                "--color-gray-400": "#9ca3af",
-                "--color-gray-500": "#6b7280",
-                "--color-gray-600": "#4b5563",
-                "--color-gray-700": "#374151",
-                "--color-gray-800": "#1f2937",
-                "--color-gray-900": "#111827",
-                "--color-blue-50": "#eff6ff",
-                "--color-blue-800": "#1e40af",
-                "--color-blue-900": "#1e3a8a",
-                "--color-emerald-400": "#34d399",
-                "--color-emerald-500": "#10b981",
-                "--color-purple-500": "#a855f7",
-                "--color-pink-500": "#ec4899",
-                "--color-fuchsia-600": "#c026d3",
-                "--color-green-600": "#16a34a",
-                "--color-indigo-600": "#4f46e5"
+                ...currentTemplate.style.font === 'font-sans' ? { fontFamily: 'ui-sans-serif, system-ui, sans-serif' } : {},
+                ...currentTemplate.style.font === 'font-mono' ? { fontFamily: 'ui-monospace, monospace' } : {},
+                ...currentTemplate.style.font === 'font-serif' ? { fontFamily: 'ui-serif, serif' } : {},
+                width: '800px',
+                minWidth: '800px',
+                minHeight: '1131px',
+                backgroundColor: 'white',
+                position: 'relative',
+                margin: '0 auto',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
             }}
-            className={`w-[800px] min-w-[800px] min-h-[1131px] bg-white shadow-2xl relative mx-auto ${style.font}`}
+            className={currentTemplate.font}
         >
             {/* Watermark */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
                 <div
-                    className="text-gray-900 opacity-[0.03] font-bold uppercase transform -rotate-45 whitespace-nowrap select-none"
-                    style={{ fontSize: '120px' }}
+                    style={{
+                        color: COLORS.gray900,
+                        opacity: 0.03,
+                        fontSize: '120px',
+                        transform: 'rotate(-45deg)',
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        userSelect: 'none',
+                        whiteSpace: 'nowrap'
+                    }}
                 >
                     {sender.name || 'BizMaker'}
                 </div>
@@ -116,72 +140,72 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
 
             <div className="h-full flex flex-col justify-between relative z-10">
 
-                {/* Header Section (Dynamic Background) */}
-                <div className={`${style.headerBg} p-12 transition-colors`}>
+                {/* Header Section */}
+                <div style={{ ...currentTemplate.headerStyle, padding: '3rem', transition: 'background-color 0.3s' }}>
                     <div className="flex justify-between items-start">
                         <div className="w-1/2">
                             {logo ? (
-                                <img src={logo} alt="Logo" crossOrigin="anonymous" className="h-20 w-auto object-contain mb-4" />
+                                <img src={logo} alt="Logo" crossOrigin="anonymous" style={{ height: '5rem', width: 'auto', objectFit: 'contain', marginBottom: '1rem' }} />
                             ) : (
-                                <div className="h-16 w-16 bg-white/20 backdrop-blur-sm rounded flex items-center justify-center text-current opacity-50 mb-4 text-xs">
+                                <div style={{ height: '4rem', width: '4rem', backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(4px)', borderRadius: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5, marginBottom: '1rem', fontSize: '0.75rem', color: 'currentColor' }}>
                                     No Logo
                                 </div>
                             )}
-                            <h1 className={`text-3xl font-bold mb-1 ${style.headerText}`}>{sender.name || 'Your Business'}</h1>
-                            <div className={style.headerText === 'text-white' ? 'text-white/80' : 'text-gray-500'}>
-                                <p className="text-sm whitespace-pre-line">{sender.address}</p>
-                                <p className="text-sm mt-1">{sender.email}</p>
-                                <p className="text-sm">{sender.phone}</p>
+                            <h1 style={{ ...currentTemplate.headerTitleStyle, fontSize: '1.875rem', fontWeight: 700, marginBottom: '0.25rem' }}>{sender.name || 'Your Business'}</h1>
+                            <div style={currentTemplate.headerTextStyle}>
+                                <p style={{ fontSize: '0.875rem', whiteSpace: 'pre-line' }}>{sender.address}</p>
+                                <p style={{ fontSize: '0.875rem', marginTop: '0.25rem' }}>{sender.email}</p>
+                                <p style={{ fontSize: '0.875rem' }}>{sender.phone}</p>
                             </div>
                         </div>
                         <div className="text-right">
-                            <h2 className={`text-5xl font-light tracking-wide uppercase ${style.headerText === 'text-white' ? 'text-white/20' : 'text-gray-200'}`}>
+                            <h2 style={{ ...currentTemplate.docTypeStyle, fontSize: '3rem', fontWeight: 300, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                                 {docType}
                             </h2>
-                            <div className={`mt-6 text-right ${style.headerText === 'text-white' ? 'text-white' : 'text-gray-800'}`}>
+                            <div style={{ marginTop: '1.5rem', textAlign: 'right', ...currentTemplate.detailsTextStyle }}>
                                 <div className="mb-2">
-                                    <span className={`block opacity-70 text-xs uppercase mb-1`}>Number</span>
-                                    <span className="text-lg font-medium">{safeData.number}</span>
+                                    <span style={{ display: 'block', opacity: 0.7, fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Number</span>
+                                    <span style={{ fontSize: '1.125rem', fontWeight: 500 }}>{safeData.number}</span>
                                 </div>
                                 <div className="mb-2">
-                                    <span className={`block opacity-70 text-xs uppercase mb-1`}>Date</span>
-                                    <span className="text-md">{safeData.date}</span>
+                                    <span style={{ display: 'block', opacity: 0.7, fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Date</span>
+                                    <span style={{ fontSize: '1rem' }}>{safeData.date}</span>
                                 </div>
                                 <div>
-                                    <span className={`block opacity-70 text-xs uppercase mb-1`}>{docType === 'Invoice' ? 'Due Date' : 'Paid Date'}</span>
-                                    <span className="text-md">{safeData.dueDate}</span>
+                                    <span style={{ display: 'block', opacity: 0.7, fontSize: '0.75rem', textTransform: 'uppercase', marginBottom: '0.25rem' }}>{docType === 'Invoice' ? 'Due Date' : 'Paid Date'}</span>
+                                    <span style={{ fontSize: '1rem' }}>{safeData.dueDate}</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="p-12 flex-1">
+                <div style={{ padding: '3rem', flex: 1 }}>
                     {/* Recipient Section */}
-                    <div className="mb-12">
-                        <span className={style.labelStyle}>Bill To</span>
-                        <h3 className="text-xl font-bold text-gray-800 mt-2 mb-1">{recipient.name || 'Client Name'}</h3>
-                        <p className="text-sm text-gray-600 whitespace-pre-line">{recipient.address}</p>
-                        <p className="text-sm text-gray-600 mt-1">{recipient.email}</p>
+                    <div style={{ marginBottom: '3rem' }}>
+                        <span style={currentTemplate.labelStyle}>Bill To</span>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: COLORS.gray800, marginTop: '0.5rem', marginBottom: '0.25rem' }}>{recipient.name || 'Client Name'}</h3>
+                        <p style={{ fontSize: '0.875rem', color: COLORS.gray600, whiteSpace: 'pre-line' }}>{recipient.address}</p>
+                        <p style={{ fontSize: '0.875rem', color: COLORS.gray600, marginTop: '0.25rem' }}>{recipient.email}</p>
                     </div>
 
                     {/* Table */}
-                    <table className="w-full mb-8">
+                    <table style={{ width: '100%', marginBottom: '2rem', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr className={`border-b-2 ${style.accent === '#000000' ? 'border-black' : 'border-gray-100'}`}>
-                                <th className={`text-left py-3 ${style.labelStyle} w-1/2`}>Description</th>
-                                <th className={`text-right py-3 ${style.labelStyle}`}>Quantity</th>
-                                <th className={`text-right py-3 ${style.labelStyle}`}>Price</th>
-                                <th className={`text-right py-3 ${style.labelStyle}`}>Amount</th>
+                            <tr style={{ borderBottom: `2px solid ${currentTemplate.accent === '#000000' ? '#000000' : COLORS.gray100}` }}>
+                                <th style={{ textAlign: 'left', padding: '0.75rem 0', width: '50%', ...currentTemplate.labelStyle }}>Description</th>
+                                <th style={{ textAlign: 'right', padding: '0.75rem 0', ...currentTemplate.labelStyle }}>Quantity</th>
+                                <th style={{ textAlign: 'right', padding: '0.75rem 0', ...currentTemplate.labelStyle }}>Price</th>
+                                <th style={{ textAlign: 'right', padding: '0.75rem 0', ...currentTemplate.labelStyle }}>Amount</th>
                             </tr>
                         </thead>
                         <tbody>
                             {items.map((item, index) => (
-                                <tr key={item.id || index} className="border-b border-gray-50 text-sm">
-                                    <td className="py-4 text-gray-800 font-medium">{item.description}</td>
-                                    <td className="py-4 text-right text-gray-600">{item.quantity}</td>
-                                    <td className="py-4 text-right text-gray-600">{currency}{(item.price || 0).toFixed(2)}</td>
-                                    <td className="py-4 text-right text-gray-800 font-bold">{currency}{((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
+                                <tr key={item.id || index} style={{ borderBottom: `1px solid ${COLORS.gray50}` }}>
+                                    <td style={{ padding: '1rem 0', color: COLORS.gray800, fontWeight: 500 }}>{item.description}</td>
+                                    <td style={{ padding: '1rem 0', textAlign: 'right', color: COLORS.gray600 }}>{item.quantity}</td>
+                                    <td style={{ padding: '1rem 0', textAlign: 'right', color: COLORS.gray600 }}>{currency}{(item.price || 0).toFixed(2)}</td>
+                                    <td style={{ padding: '1rem 0', textAlign: 'right', color: COLORS.gray800, fontWeight: 700 }}>{currency}{((item.quantity || 0) * (item.price || 0)).toFixed(2)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -189,43 +213,50 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
                 </div>
 
                 {/* Footer / Totals */}
-                <div className="p-12 bg-gray-50/50">
+                <div style={{ padding: '3rem', backgroundColor: 'rgba(249, 250, 251, 0.5)' }}>
                     <div className="flex justify-end mb-12">
                         <div className="w-1/2 space-y-2">
                             <div className="flex justify-between">
-                                <span className="text-sm font-medium text-gray-500">Subtotal</span>
-                                <span className="text-sm font-bold text-gray-800">{currency}{subtotal.toFixed(2)}</span>
+                                <span style={{ fontSize: '0.875rem', fontWeight: 500, color: COLORS.gray500 }}>Subtotal</span>
+                                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: COLORS.gray800 }}>{currency}{subtotal.toFixed(2)}</span>
                             </div>
                             {taxRate > 0 && (
                                 <div className="flex justify-between">
-                                    <span className="text-sm font-medium text-gray-500">Tax ({taxRate}%)</span>
-                                    <span className="text-sm font-bold text-gray-800">{currency}{taxAmount.toFixed(2)}</span>
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 500, color: COLORS.gray500 }}>Tax ({taxRate}%)</span>
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: COLORS.gray800 }}>{currency}{taxAmount.toFixed(2)}</span>
                                 </div>
                             )}
                             {discount > 0 && (
-                                <div className="flex justify-between text-green-600">
-                                    <span className="text-sm font-medium">Discount</span>
-                                    <span className="text-sm font-bold">-{currency}{discount.toFixed(2)}</span>
+                                <div className="flex justify-between" style={{ color: '#16a34a' }}> {/* green-600 */}
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Discount</span>
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>-{currency}{discount.toFixed(2)}</span>
                                 </div>
                             )}
-                            <div className={`flex justify-between py-4 mt-2 border-t border-gray-200`}>
-                                <span className="text-lg font-bold uppercase text-gray-900">{docType === 'Invoice' ? 'Amount Due' : 'Total Paid'}</span>
-                                <span className="text-2xl font-bold" style={{ color: style.accent }}>{currency}{total.toFixed(2)}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '1rem 0', marginTop: '0.5rem', borderTop: `1px solid ${COLORS.gray200}` }}>
+                                <span style={{ fontSize: '1.125rem', fontWeight: 700, textTransform: 'uppercase', color: COLORS.gray900 }}>{docType === 'Invoice' ? 'Amount Due' : 'Total Paid'}</span>
+                                <span style={{ fontSize: '1.5rem', fontWeight: 700, color: currentTemplate.accent }}>{currency}{total.toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
 
                     {/* Notes */}
                     {safeData.notes && (
-                        <div className={`p-4 ${style.borderStyle} ${templateId === 'tech' ? 'bg-slate-100 border-l-4 border-emerald-500' : 'bg-white border border-gray-200'}`}>
-                            <h4 className={style.labelStyle}>Notes & Terms</h4>
-                            <p className="text-sm text-gray-600 leading-relaxed mt-1">{safeData.notes}</p>
+                        <div style={{
+                            padding: '1rem',
+                            backgroundColor: templateId === 'tech' ? '#f1f5f9' : '#ffffff',
+                            border: templateId === 'tech' ? 'none' : `1px solid ${COLORS.gray200}`,
+                            borderLeft: templateId === 'tech' ? '4px solid #10b981' : `1px solid ${COLORS.gray200}`,
+                            ...currentTemplate.borderStyle === 'rounded-2xl' ? { borderRadius: '1rem' } : {},
+                            ...currentTemplate.borderStyle === 'rounded-sm' ? { borderRadius: '0.125rem' } : {}
+                        }}>
+                            <h4 style={currentTemplate.labelStyle}>Notes & Terms</h4>
+                            <p style={{ fontSize: '0.875rem', color: COLORS.gray600, lineHeight: 1.625, marginTop: '0.25rem' }}>{safeData.notes}</p>
                         </div>
                     )}
 
                     {/* Footer Branding */}
-                    <div className="mt-12 pt-6 border-t border-gray-200 text-center">
-                        <p className="text-xs text-gray-400">Generated by BizMaker Pro</p>
+                    <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: `1px solid ${COLORS.gray200}`, textAlign: 'center' }}>
+                        <p style={{ fontSize: '0.75rem', color: COLORS.gray400 }}>Generated by BizMaker Pro</p>
                     </div>
                 </div>
             </div>
