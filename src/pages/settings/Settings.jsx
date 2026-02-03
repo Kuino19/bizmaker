@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Save, Building2, MapPin, Globe, Banknote } from 'lucide-react';
+import { Save, Building2, MapPin, Globe, Banknote, Image } from 'lucide-react';
 
 const Settings = () => {
     const { user, updateProfile } = useAuth();
@@ -9,7 +9,8 @@ const Settings = () => {
         name: '',
         address: '',
         country: '',
-        currency: ''
+        currency: '',
+        logo: ''
     });
 
     useEffect(() => {
@@ -18,10 +19,28 @@ const Settings = () => {
                 name: user.user_metadata.name || user.user_metadata.full_name || '',
                 address: user.user_metadata.address || '',
                 country: user.user_metadata.country || 'US',
-                currency: user.user_metadata.currency || '$'
+                currency: user.user_metadata.currency || '$',
+                logo: user.user_metadata.logo || ''
             });
         }
     }, [user]);
+
+    const handleLogoChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            // Check size (limit to 100KB to prevent metadata overflow)
+            if (file.size > 1024 * 100) {
+                alert("Logo file is too large. Please choose an image under 100KB.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setFormData(prev => ({ ...prev, logo: reader.result }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleChange = (e) => {
         setFormData({
@@ -60,6 +79,43 @@ const Settings = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
+                    {/* Logo Upload Section */}
+                    <div className="flex items-center gap-6 pb-6 border-b border-gray-100">
+                        <div className="shrink-0">
+                            <div className="w-20 h-20 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                                {formData.logo ? (
+                                    <img src={formData.logo} alt="Business Logo" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Image size={24} className="text-gray-400" />
+                                )}
+                            </div>
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Business Logo</label>
+                            <p className="text-xs text-gray-500 mb-3">Recommended size: 200x200px. Max size: 100KB.</p>
+                            <div className="flex items-center gap-3">
+                                <label className="cursor-pointer px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors shadow-sm">
+                                    Upload New Logo
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={handleLogoChange}
+                                    />
+                                </label>
+                                {formData.logo && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, logo: '' }))}
+                                        className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-gray-700">Business Name</label>

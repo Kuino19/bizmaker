@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 
 const Sidebar = ({ className, onLinkClick }) => {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const [deferredPrompt, setDeferredPrompt] = useState(null);
 
     useEffect(() => {
@@ -37,10 +37,16 @@ const Sidebar = ({ className, onLinkClick }) => {
         { icon: Settings, label: 'Settings', path: '/settings' },
     ];
 
+    const userLogo = user?.user_metadata?.logo;
+
     return (
         <aside className={cn("w-64 bg-white border-r border-gray-200 flex flex-col h-screen fixed left-0 top-0 z-20 hidden md:flex", className)}>
             <div className="p-6 border-b border-gray-100 flex items-center gap-2">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">B</div>
+                {userLogo ? (
+                    <img src={userLogo} alt="Logo" className="w-8 h-8 rounded-lg object-cover" />
+                ) : (
+                    <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">B</div>
+                )}
                 <span className="text-xl font-bold text-gray-800">BizMaker</span>
             </div>
 
