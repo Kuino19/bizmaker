@@ -152,14 +152,13 @@ const DocumentPreview = () => {
 
             {/* Preview Area */}
             <div className="flex-1 overflow-auto p-8 flex justify-center">
-                <div className="shadow-2xl">
+                <div className="shadow-2xl" id="document-preview">
                     <InvoiceTemplate
                         docData={docData}
                         docType={docType}
                         currency={currency}
                         templateId={location.state?.templateId || 'professional'}
                         logo={logo}
-                        id="document-preview" // IMPORTANT: Added ID for html2pdf
                     />
                 </div>
             </div>
