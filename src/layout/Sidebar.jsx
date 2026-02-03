@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, FilePlus, History, Users, Settings, LogOut, CheckCircle, FileText, PieChart, Download } from 'lucide-react';
+import { LayoutDashboard, FilePlus, History, Users, Settings, LogOut, CheckCircle, FileText, PieChart, Download, Camera } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 
@@ -35,6 +35,7 @@ const Sidebar = ({ className, onLinkClick }) => {
         { icon: PieChart, label: 'Finance', path: '/finance' }, // Finance Link
         { icon: Users, label: 'Clients', path: '/clients' },
         { icon: Settings, label: 'Settings', path: '/settings' },
+        { icon: Camera, label: 'Marketing', path: '/marketing-capture' }, // Marketing Tool
     ];
 
     const userLogo = user?.user_metadata?.logo;

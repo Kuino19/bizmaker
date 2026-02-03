@@ -12,6 +12,7 @@ import Clients from './pages/clients/Clients';
 import DocumentPreview from './pages/preview/DocumentPreview';
 import Finance from './pages/finance/Finance';
 import Settings from './pages/settings/Settings';
+import MarketingCapture from './pages/debug/MarketingCapture';
 
 function App() {
   return (
@@ -89,6 +90,12 @@ function App() {
           <Route path="/preview" element={
             <ProtectedRoute>
               <DocumentPreview />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/marketing-capture" element={
+            <ProtectedRoute>
+              <MarketingCapture />
             </ProtectedRoute>
           } />
 
