@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import { Users, Plus, Trash2, Mail, MapPin } from 'lucide-react';
