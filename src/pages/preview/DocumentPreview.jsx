@@ -162,7 +162,7 @@ const DocumentPreview = () => {
 
             {/* Preview Area */}
             <div className="flex-1 overflow-auto p-8 flex justify-center">
-                <div className="shadow-2xl" id="document-preview">
+                <div>
                     <InvoiceTemplate
                         docData={docData}
                         docType={docType}
