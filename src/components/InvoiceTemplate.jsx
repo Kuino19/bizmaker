@@ -83,7 +83,7 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
                     <div className="flex justify-between items-start">
                         <div className="w-1/2">
                             {logo ? (
-                                <img src={logo} alt="Logo" className="h-20 w-auto object-contain mb-4" />
+                                <img src={logo} alt="Logo" crossOrigin="anonymous" className="h-20 w-auto object-contain mb-4" />
                             ) : (
                                 <div className="h-16 w-16 bg-white/20 backdrop-blur-sm rounded flex items-center justify-center text-current opacity-50 mb-4 text-xs">
                                     No Logo

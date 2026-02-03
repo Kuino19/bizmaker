@@ -38,17 +38,24 @@ const DocumentPreview = () => {
             jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
         };
 
-        // Small delay to ensure rendering (especially images)
+        // Delay to ensure rendering (especially images)
         setTimeout(() => {
-            html2pdf().set(opt).from(element).save().then(() => {
+            console.log("Starting PDF generation...");
+            try {
+                html2pdf().set(opt).from(element).save().then(() => {
+                    setIsGenerating(false);
+                    toast.success('PDF Downloaded!');
+                }).catch(err => {
+                    console.error('PDF Generation Error Promise:', err);
+                    setIsGenerating(false);
+                    toast.error('Failed: ' + (err.message || 'Unknown Error'));
+                });
+            } catch (e) {
+                console.error('PDF Generation Synchronous Error:', e);
                 setIsGenerating(false);
-                toast.success('PDF Downloaded!');
-            }).catch(err => {
-                console.error('PDF Generation Error:', err);
-                setIsGenerating(false);
-                toast.error('Failed to generate PDF. See console for details.');
-            });
-        }, 500);
+                toast.error('Crash: ' + e.message);
+            }
+        }, 800);
     };
 
     const handleSendEmail = async () => {
