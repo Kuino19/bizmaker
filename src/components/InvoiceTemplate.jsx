@@ -64,6 +64,44 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
     return (
         <div
             id="document-preview"
+            style={{
+                ...style.font === 'font-sans' ? { fontFamily: 'ui-sans-serif, system-ui, sans-serif' } : {},
+                ...style.font === 'font-mono' ? { fontFamily: 'ui-monospace, monospace' } : {},
+                ...style.font === 'font-serif' ? { fontFamily: 'ui-serif, serif' } : {},
+                // Force HEX colors for html2canvas compatibility
+                "--color-white": "#ffffff",
+                "--color-black": "#000000",
+                "--color-slate-50": "#f8fafc",
+                "--color-slate-100": "#f1f5f9",
+                "--color-slate-200": "#e2e8f0",
+                "--color-slate-300": "#cbd5e1",
+                "--color-slate-400": "#94a3b8",
+                "--color-slate-500": "#64748b",
+                "--color-slate-600": "#475569",
+                "--color-slate-700": "#334155",
+                "--color-slate-800": "#1e293b",
+                "--color-slate-900": "#0f172a",
+                "--color-gray-50": "#f9fafb",
+                "--color-gray-100": "#f3f4f6",
+                "--color-gray-200": "#e5e7eb",
+                "--color-gray-300": "#d1d5db",
+                "--color-gray-400": "#9ca3af",
+                "--color-gray-500": "#6b7280",
+                "--color-gray-600": "#4b5563",
+                "--color-gray-700": "#374151",
+                "--color-gray-800": "#1f2937",
+                "--color-gray-900": "#111827",
+                "--color-blue-50": "#eff6ff",
+                "--color-blue-800": "#1e40af",
+                "--color-blue-900": "#1e3a8a",
+                "--color-emerald-400": "#34d399",
+                "--color-emerald-500": "#10b981",
+                "--color-purple-500": "#a855f7",
+                "--color-pink-500": "#ec4899",
+                "--color-fuchsia-600": "#c026d3",
+                "--color-green-600": "#16a34a",
+                "--color-indigo-600": "#4f46e5"
+            }}
             className={`w-[800px] min-w-[800px] min-h-[1131px] bg-white shadow-2xl relative mx-auto ${style.font}`}
         >
             {/* Watermark */}
