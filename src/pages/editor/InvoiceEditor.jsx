@@ -34,13 +34,18 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     const [docType, setDocType] = useState(startType);
     const [templateId, setTemplateId] = useState(initialData?.templateId || 'professional');
     const [currency, setCurrency] = useState(initialData?.currency || user?.user_metadata?.currency || '$');
-    const [logo, setLogo] = useState(initialData?.logo || null);
+    const [logo, setLogo] = useState(initialData?.logo || user?.user_metadata?.logo || null);
 
     // Document Data
     const [clients, setClients] = useState([]);
 
     useEffect(() => {
-        if (user) fetchClients();
+        if (user) {
+            fetchClients();
+            if (!logo && user.user_metadata?.logo) {
+                setLogo(user.user_metadata.logo);
+            }
+        }
     }, [user]);
 
     const fetchClients = async () => {
