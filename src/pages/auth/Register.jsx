@@ -39,12 +39,12 @@ const Register = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
                         <input
                             type="text"
                             required
                             className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
-                            placeholder="John Doe"
+                            placeholder="My Awesome Business"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                         />

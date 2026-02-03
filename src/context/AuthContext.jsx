@@ -75,8 +75,31 @@ export const AuthProvider = ({ children }) => {
         toast.success('Logged out');
     };
 
+    const updateProfile = async (updates) => {
+        const { error } = await supabase.auth.updateUser({
+            data: updates
+        });
+
+        if (error) {
+            toast.error(error.message);
+            return false;
+        }
+
+        // Manually update local state to reflect changes immediately
+        setUser(prev => ({
+            ...prev,
+            user_metadata: {
+                ...prev.user_metadata,
+                ...updates
+            }
+        }));
+
+        toast.success('Profile updated successfully');
+        return true;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateProfile }}>
             {!isLoading && children}
         </AuthContext.Provider>
     );

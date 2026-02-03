@@ -11,6 +11,7 @@ import History from './pages/history/History';
 import Clients from './pages/clients/Clients';
 import DocumentPreview from './pages/preview/DocumentPreview';
 import Finance from './pages/finance/Finance';
+import Settings from './pages/settings/Settings';
 
 function App() {
   return (
@@ -73,6 +74,14 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <Finance />
+              </Layout>
+            </ProtectedRoute>
+          } />
+
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <Layout>
+                <Settings />
               </Layout>
             </ProtectedRoute>
           } />
