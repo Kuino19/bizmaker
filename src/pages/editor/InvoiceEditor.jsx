@@ -77,6 +77,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
             { id: Date.now(), description: '', quantity: 1, price: 0 }
         ],
         notes: '',
+        paymentDetails: '',
         taxRate: 0,
         discount: 0
     });
@@ -150,6 +151,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 recipient_phone: docData.recipient.phone,
                 items: docData.items, // JSONB
                 notes: docData.notes,
+                payment_details: docData.paymentDetails,
                 subtotal: subtotal,
                 tax_rate: docData.taxRate,
                 discount: docData.discount,
@@ -266,7 +268,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
 
                 <div className="flex gap-3 w-full md:w-auto">
                     <button
-                        onClick={() => setDocData({ ...docData, items: [], notes: '', discount: 0, taxRate: 0 })}
+                        onClick={() => setDocData({ ...docData, items: [], notes: '', paymentDetails: '', discount: 0, taxRate: 0 })}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-sm font-medium border border-gray-200"
                     >
                         <RefreshCcw size={16} /> Reset
@@ -493,6 +495,17 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                                         onChange={(e) => handleInputChange(null, 'notes', e.target.value)}
                                         placeholder="Add any notes, payment terms, or thank you messages here..."
                                     ></textarea>
+                                    <div className={`mt-4 ${docType !== 'Invoice' ? 'opacity-50' : ''}`}>
+                                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Payment Details {docType !== 'Invoice' && '(Invoice Only)'}</label>
+                                        <textarea
+                                            rows="3"
+                                            className="w-full text-sm p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none bg-gray-50"
+                                            value={docData.paymentDetails || ''}
+                                            onChange={(e) => handleInputChange(null, 'paymentDetails', e.target.value)}
+                                            placeholder="Bank Name, Account No, Sort Code, IBAN etc."
+                                            disabled={docType !== 'Invoice'}
+                                        ></textarea>
+                                    </div>
                                 </div>
                                 <div className="bg-gray-50 p-6 rounded-xl space-y-3">
                                     <div className="flex justify-between items-center">
@@ -530,7 +543,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
             </div>
 
             <div className="h-20"></div>
-        </div>
+        </div >
     );
 };
 
