@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, ProtectedRoute } from './context/AuthContext';
 import { Toaster } from 'react-hot-toast';
+import { Analytics } from '@vercel/analytics/react';
 import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Layout from './layout/Layout';
@@ -19,6 +20,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Toaster position="top-center" />
+        <Analytics />
         <Routes>
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/register" element={<Register />} />
