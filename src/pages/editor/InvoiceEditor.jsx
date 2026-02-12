@@ -58,7 +58,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
 
     const [docData, setDocData] = useState(initialData || {
         id: Date.now().toString(),
-        number: 'INV-' + Math.floor(1000 + Math.random() * 9000), // Random ID for fresh doc
+        number: (startType === 'Receipt' ? 'REC-' : 'INV-') + Math.floor(1000 + Math.random() * 9000), // Random ID for fresh doc
         date: new Date().toISOString().slice(0, 10),
         dueDate: new Date(Date.now() + 12096e5).toISOString().slice(0, 10), // +14 days
         sender: {
@@ -151,7 +151,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 recipient_phone: docData.recipient.phone,
                 items: docData.items, // JSONB
                 notes: docData.notes,
-                payment_details: docData.paymentDetails,
+                // payment_details: docData.paymentDetails, // Column missing in DB, removing to prevent crash
                 subtotal: subtotal,
                 tax_rate: docData.taxRate,
                 discount: docData.discount,
@@ -162,6 +162,15 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 status: 'Pending',
                 updated_at: new Date().toISOString()
             };
+
+            // CHECK PAYLOAD SIZE
+            const payloadString = JSON.stringify(invoicePayload);
+            const sizeInBytes = new Blob([payloadString]).size;
+            const sizeInKB = sizeInBytes / 1024;
+
+            if (sizeInKB > 1000) { // 1MB Limit (Supabase default is often higher, but good specific check)
+                throw new Error(`Document too large (${sizeInKB.toFixed(2)}KB). Please reduce logo size or remove it.`);
+            }
 
             // If it's an existing edit (has a numeric ID presumably from DB), include ID.
             // If it's a new doc with a temporary timestamp ID, we let Supabase generate a new ID (or use the timestamp if valid bigint)
@@ -229,7 +238,11 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
 
         } catch (error) {
             console.error(error);
-            toast.error('Error saving: ' + error.message, { id: toastId });
+            let msg = error.message;
+            if (msg === 'Failed to fetch') {
+                msg = 'Network error or payload too large. Try removing the logo.';
+            }
+            toast.error('Error saving: ' + msg, { id: toastId });
             return null;
         }
     };
