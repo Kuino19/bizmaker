@@ -1,0 +1,151 @@
+import { supabase } from '../supabaseClient';
+
+const isGuest = () => localStorage.getItem('isGuest') === 'true';
+
+const getLocal = (key) => {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+};
+
+const setLocal = (key, data) => {
+    localStorage.setItem(key, JSON.stringify(data));
+};
+
+export const storageService = {
+    // Auth Helper
+    async getLocalUser() {
+        const user = localStorage.getItem('local_user');
+        return user ? JSON.parse(user) : null;
+    },
+
+    async setLocalUser(user) {
+        localStorage.setItem('local_user', JSON.stringify(user));
+    },
+
+    // Invoices
+    async getInvoices(userId, typeFilter) {
+        if (!isGuest()) {
+            let query = supabase
+                .from('invoices')
+                .select('*')
+                .eq('user_id', userId)
+                .order('updated_at', { ascending: false });
+            
+            if (typeFilter) {
+                query = query.eq('doc_type', typeFilter);
+            }
+            
+            const { data, error } = await query;
+            if (error) throw error;
+            return data;
+        } else {
+            let invoices = getLocal('invoices');
+            if (typeFilter) {
+                invoices = invoices.filter(inv => inv.doc_type === typeFilter);
+            }
+            return invoices.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+        }
+    },
+
+    async saveInvoice(invoiceData) {
+        if (!isGuest()) {
+            const { data, error } = await supabase
+                .from('invoices')
+                .upsert([invoiceData])
+                .select();
+            if (error) throw error;
+            return data[0];
+        } else {
+            const invoices = getLocal('invoices');
+            const index = invoices.findIndex(inv => inv.id === invoiceData.id);
+            const now = new Date().toISOString();
+            
+            const updatedInvoice = {
+                ...invoiceData,
+                updated_at: now,
+                created_at: invoiceData.created_at || now
+            };
+
+            if (index > -1) {
+                invoices[index] = updatedInvoice;
+            } else {
+                updatedInvoice.id = updatedInvoice.id || crypto.randomUUID();
+                invoices.unshift(updatedInvoice);
+            }
+            
+            setLocal('invoices', invoices);
+            return updatedInvoice;
+        }
+    },
+
+    async deleteInvoice(id) {
+        if (!isGuest()) {
+            const { error } = await supabase
+                .from('invoices')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        } else {
+            const invoices = getLocal('invoices').filter(inv => inv.id !== id);
+            setLocal('invoices', invoices);
+        }
+    },
+
+    // Clients
+    async getClients(userId) {
+        if (!isGuest()) {
+            const { data, error } = await supabase
+                .from('clients')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            return data;
+        } else {
+            return getLocal('clients').sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        }
+    },
+
+    async saveClient(clientData) {
+        if (!isGuest()) {
+            const { data, error } = await supabase
+                .from('clients')
+                .upsert([clientData])
+                .select();
+            if (error) throw error;
+            return data[0];
+        } else {
+            const clients = getLocal('clients');
+            const index = clients.findIndex(c => c.id === clientData.id);
+            const now = new Date().toISOString();
+            
+            const updatedClient = {
+                ...clientData,
+                created_at: clientData.created_at || now
+            };
+
+            if (index > -1) {
+                clients[index] = updatedClient;
+            } else {
+                updatedClient.id = updatedClient.id || crypto.randomUUID();
+                clients.unshift(updatedClient);
+            }
+            
+            setLocal('clients', clients);
+            return updatedClient;
+        }
+    },
+
+    async deleteClient(id) {
+        if (!isNative) {
+            const { error } = await supabase
+                .from('clients')
+                .delete()
+                .eq('id', id);
+            if (error) throw error;
+        } else {
+            const clients = getLocal('clients').filter(c => c.id !== id);
+            setLocal('clients', clients);
+        }
+    }
+};

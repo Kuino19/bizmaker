@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../supabaseClient';
+import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { FileText, Users, TrendingUp, ArrowRight, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -63,12 +63,9 @@ const Dashboard = () => {
     const fetchStats = async () => {
         setIsLoading(true);
         try {
-            const { data: invoices, error } = await supabase
-                .from('invoices')
-                .select('doc_type, total')
-                .eq('user_id', user.id);
+            const invoices = await storageService.getInvoices(user.id);
 
-            if (!error && invoices) {
+            if (invoices) {
                 const revenue = invoices
                     .filter(inv => inv.doc_type === 'Receipt')
                     .reduce((acc, inv) => acc + (inv.total || 0), 0);
@@ -78,24 +75,8 @@ const Dashboard = () => {
                     revenue,
                     invoiceCount: invoices.length
                 }));
-            }
 
-            const { count: clientCount } = await supabase
-                .from('clients')
-                .select('*', { count: 'exact', head: true })
-                .eq('user_id', user.id);
-
-            setStats(prev => ({ ...prev, clientCount: clientCount || 0 }));
-
-            const { data: recent } = await supabase
-                .from('invoices')
-                .select('id, recipient_name, unique_number, date, currency, total, doc_type, updated_at')
-                .eq('user_id', user.id)
-                .order('updated_at', { ascending: false })
-                .limit(10); // Fetch a bit more for the feed
-
-            if (recent) {
-                const mappedRecent = recent.map(inv => ({
+                const mappedRecent = invoices.slice(0, 10).map(inv => ({
                     id: inv.id,
                     recipient: { name: inv.recipient_name },
                     number: inv.unique_number,
@@ -106,6 +87,10 @@ const Dashboard = () => {
                 }));
                 setRecentInvoices(mappedRecent);
             }
+
+            const clients = await storageService.getClients(user.id);
+            setStats(prev => ({ ...prev, clientCount: clients?.length || 0 }));
+
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
         } finally {

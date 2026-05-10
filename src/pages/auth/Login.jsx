@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, ArrowRight } from 'lucide-react';
+import { LogIn, ArrowRight, UserCircle } from 'lucide-react';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const { login } = useAuth();
+    const { login, continueAsGuest } = useAuth();
     const navigate = useNavigate();
+
+    const handleGuestLogin = async () => {
+        const success = await continueAsGuest();
+        if (success) navigate('/dashboard');
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         const success = await login(email, password);
         if (success) {
+            localStorage.setItem('biometric_email', email);
             navigate('/dashboard');
         }
     };
@@ -64,6 +70,14 @@ const Login = () => {
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
                     >
                         Sign In <ArrowRight size={18} />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={handleGuestLogin}
+                        className="w-full bg-white hover:bg-gray-50 text-indigo-600 font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 border-2 border-indigo-100 mt-4"
+                    >
+                        <UserCircle size={20} /> Continue as Guest
                     </button>
                 </form>
 

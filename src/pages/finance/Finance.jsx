@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabaseClient';
+import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { FileText, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 const LedgerItem = ({ item, currency, onDownload }) => (
     <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors group text-sm">
         <td className="py-3 px-4 text-gray-500 font-mono">{new Date(item.date).toLocaleDateString()}</td>
-        <td className="py-3 px-4 font-medium text-gray-900">{item.recipient.name}</td>
+        <td className="py-3 px-4 font-medium text-gray-900">{item.recipient?.name || 'Unknown'}</td>
         <td className="py-3 px-4 text-gray-500">{item.number}</td>
         <td className="py-3 px-4">
             <span className={`px-2 py-0.5 rounded text-xs font-medium border ${item.docType === 'Receipt'
@@ -50,11 +50,7 @@ const Finance = () => {
     const fetchBookings = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('invoices')
-                .select('id, unique_number, doc_type, date, recipient_name, total, currency')
-                .eq('user_id', user.id)
-                .order('date', { ascending: false });
+            const data = await storageService.getInvoices(user.id);
 
             if (data) {
                 const mapped = data.map(doc => ({
@@ -97,7 +93,7 @@ const Finance = () => {
         });
     };
 
-    const handleExportCSV = () => {
+    const handleExportCSV = async () => {
         const headers = ["Date", "Type", "Ref", "Client", "Status", "Amount"];
         const rows = bookings.map(b => [
             b.date,

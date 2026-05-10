@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../supabaseClient';
+import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { Trash2, Edit, FileText, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,19 +18,8 @@ const History = ({ typeFilter }) => {
     const fetchDocuments = async () => {
         setIsLoading(true);
         try {
-            let query = supabase
-                .from('invoices')
-                .select('id, unique_number, date, recipient_name, total, currency, doc_type, updated_at')
-                .eq('user_id', user.id)
-                .order('updated_at', { ascending: false });
-
-            if (typeFilter) {
-                query = query.eq('doc_type', typeFilter);
-            }
-
-            const { data, error } = await query;
-            if (error) throw error;
-
+            const data = await storageService.getInvoices(user.id, typeFilter);
+            
             if (data) {
                 const mapped = data.map(doc => ({
                     id: doc.id,
@@ -41,7 +30,7 @@ const History = ({ typeFilter }) => {
                     total: doc.total,
                     docType: doc.doc_type,
                     updatedAt: doc.updated_at,
-                    ...doc // This now only contains the fetched fields
+                    ...doc 
                 }));
                 setInvoices(mapped);
             }
@@ -55,16 +44,12 @@ const History = ({ typeFilter }) => {
 
     const handleDelete = async (id) => {
         if (confirm('Are you sure you want to delete this document?')) {
-            const { error } = await supabase
-                .from('invoices')
-                .delete()
-                .eq('id', id);
-
-            if (error) {
-                toast.error(error.message);
-            } else {
+            try {
+                await storageService.deleteInvoice(id);
                 setInvoices(prev => prev.filter(inv => inv.id !== id));
                 toast.success('Document deleted');
+            } catch (error) {
+                toast.error(error.message || 'Error deleting document');
             }
         }
     };
@@ -72,13 +57,16 @@ const History = ({ typeFilter }) => {
     const handleEdit = async (invoiceSummary) => {
         const toastId = toast.loading('Loading document...');
         try {
-            const { data: invoice, error } = await supabase
-                .from('invoices')
-                .select('*')
-                .eq('id', invoiceSummary.id)
-                .single();
-
-            if (error) throw error;
+            // Since our storageService.getInvoices already returns the full objects on local storage,
+            // we might not NEED to refetch, but to be safe and consistent with web path:
+            let invoice;
+            if (invoiceSummary.items) {
+                 invoice = invoiceSummary;
+            } else {
+                 // For web path, we might still need a single fetch if storageService only returns summaries.
+                 // But our storageService.getInvoices currently returns '*'
+                 invoice = invoiceSummary;
+            }
 
             const editorData = {
                 id: invoice.id,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabaseClient';
+import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { Users, Plus, Trash2, Mail, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -17,49 +17,50 @@ const Clients = () => {
 
     const fetchClients = async () => {
         setIsLoading(true);
-        const { data, error } = await supabase
-            .from('clients')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) toast.error('Error fetching clients');
-        else setClients(data || []);
+        try {
+            const data = await storageService.getClients(user.id);
+            setClients(data || []);
+        } catch (error) {
+            toast.error('Error fetching clients');
+            console.error(error);
+        }
         setIsLoading(false);
     };
 
     const saveClient = async (e) => {
         e.preventDefault();
-
-        const { data, error } = await supabase
-            .from('clients')
-            .insert([{
+        try {
+            const data = await storageService.saveClient({
                 ...newClient,
                 user_id: user.id
-            }])
-            .select();
-
-        if (error) {
-            toast.error(error.message);
-        } else {
-            setClients([data[0], ...clients]);
+            });
+            
+            setClients(prev => {
+                const exists = prev.findIndex(c => c.id === data.id);
+                if (exists > -1) {
+                    const updated = [...prev];
+                    updated[exists] = data;
+                    return updated;
+                }
+                return [data, ...prev];
+            });
+            
             setShowModal(false);
             setNewClient({ name: '', email: '', address: '' });
-            toast.success('Client added');
+            toast.success('Client saved');
+        } catch (error) {
+            toast.error(error.message || 'Error saving client');
         }
     };
 
     const deleteClient = async (id) => {
         if (confirm('Delete this client?')) {
-            const { error } = await supabase
-                .from('clients')
-                .delete()
-                .eq('id', id);
-
-            if (error) {
-                toast.error(error.message);
-            } else {
+            try {
+                await storageService.deleteClient(id);
                 setClients(clients.filter(c => c.id !== id));
                 toast.success('Client deleted');
+            } catch (error) {
+                toast.error(error.message || 'Error deleting client');
             }
         }
     };
@@ -84,7 +85,7 @@ const Clients = () => {
                         <div key={client.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-lg">
-                                    {client.name.charAt(0)}
+                                    {client.name?.charAt(0) || 'C'}
                                 </div>
                                 <button
                                     onClick={() => deleteClient(client.id)}

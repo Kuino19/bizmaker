@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabaseClient';
+import { storageService } from '../../lib/storageService';
 import {
     Plus, Trash2, FileText, CheckCircle, Settings, Image as ImageIcon,
     RefreshCcw, Eye
@@ -49,11 +49,12 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     }, [user]);
 
     const fetchClients = async () => {
-        const { data } = await supabase
-            .from('clients')
-            .select('*')
-            .eq('user_id', user.id);
-        if (data) setClients(data);
+        try {
+            const data = await storageService.getClients(user.id);
+            if (data) setClients(data);
+        } catch (error) {
+            console.error('Error fetching clients:', error);
+        }
     };
 
     const [docData, setDocData] = useState(initialData || {
@@ -138,8 +139,9 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
         const toastId = toast.loading('Saving document...');
 
         try {
-            // 1. Prepare Payload for Supabase
+            // 1. Prepare Payload
             const invoicePayload = {
+                id: docData.id,
                 user_id: user.id,
                 unique_number: docData.number,
                 doc_type: docType,
@@ -149,9 +151,8 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 recipient_email: docData.recipient.email,
                 recipient_address: docData.recipient.address,
                 recipient_phone: docData.recipient.phone,
-                items: docData.items, // JSONB
+                items: docData.items, 
                 notes: docData.notes,
-                // payment_details: docData.paymentDetails, // Column missing in DB, removing to prevent crash
                 subtotal: subtotal,
                 tax_rate: docData.taxRate,
                 discount: docData.discount,
@@ -172,64 +173,20 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 throw new Error(`Document too large (${sizeInKB.toFixed(2)}KB). Please use a smaller logo or remove it.`);
             }
 
-            // If it's an existing edit (has a numeric ID presumably from DB), include ID.
-            // If it's a new doc with a temporary timestamp ID, we let Supabase generate a new ID (or use the timestamp if valid bigint)
-            // For simplicity, we'll try to use the unique_number as a key for upsert if we want to overwrite,
-            // BUT unique_number isn't unique in DB constraint.
-            // Better: If we have an ID that looks like a DB ID (not just Date.now() string if we can distinguish), use it.
-            // Actually, for this transition, let's look up if this number exists for this user first? 
-            // Or just check if initialData had an ID.
-
-            // For now, let's Query by unique_number + user_id to see if it exists to Update it, otherwise Insert.
-            // This prevents duplicate invoices with same number.
-
-            const { data: existing } = await supabase
-                .from('invoices')
-                .select('id')
-                .eq('user_id', user.id)
-                .eq('unique_number', docData.number)
-                .single();
-
-            let savedData;
-
-            if (existing) {
-                // Update
-                const { data, error } = await supabase
-                    .from('invoices')
-                    .update(invoicePayload)
-                    .eq('id', existing.id)
-                    .select()
-                    .single();
-                if (error) throw error;
-                savedData = data;
-            } else {
-                // Insert
-                const { data, error } = await supabase
-                    .from('invoices')
-                    .insert([invoicePayload])
-                    .select()
-                    .single();
-                if (error) throw error;
-                savedData = data;
-            }
+            const savedData = await storageService.saveInvoice(invoicePayload);
 
             // 2. Auto-save Client
             if (docData.recipient.name) {
-                // Check if client exists by name
-                const { data: clientData } = await supabase
-                    .from('clients')
-                    .select('id')
-                    .eq('user_id', user.id)
-                    .ilike('name', docData.recipient.name) // Case insensitive
-                    .single();
+                const existingClients = await storageService.getClients(user.id);
+                const existingClient = existingClients.find(c => c.name.toLowerCase() === docData.recipient.name.toLowerCase());
 
-                if (!clientData) {
-                    await supabase.from('clients').insert([{
+                if (!existingClient) {
+                    await storageService.saveClient({
                         user_id: user.id,
                         name: docData.recipient.name,
                         email: docData.recipient.email,
                         address: docData.recipient.address
-                    }]);
+                    });
                 }
             }
 

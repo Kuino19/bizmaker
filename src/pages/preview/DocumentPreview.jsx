@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Edit, Mail } from 'lucide-react';
+import { ArrowLeft, Download, Edit, Mail, Save } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
@@ -134,28 +134,29 @@ const DocumentPreview = () => {
                     <h1 className="text-xl font-bold text-gray-800">{docType} Preview</h1>
                 </div>
 
-                <div className="flex gap-3 w-full md:w-auto">
+                <div className="flex flex-wrap gap-3 w-full md:w-auto">
                     <button
                         onClick={() => navigate(-1)}
-                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-sm font-medium border border-gray-200"
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-xs font-medium border border-gray-200"
                     >
-                        <Edit size={16} /> Edit
+                        <Edit size={14} /> Edit
                     </button>
 
                     <button
                         onClick={handleSendEmail}
                         disabled={isSending}
-                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 text-white rounded-lg shadow-sm transition-all text-sm font-medium ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 text-white rounded-lg shadow-sm transition-all text-xs font-medium ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                     >
-                        <Mail size={18} /> {isSending ? 'Sending...' : 'Send Email'}
+                        <Mail size={16} /> {isSending ? 'Email' : 'Email'}
                     </button>
+
 
                     <button
                         onClick={generatePDF}
                         disabled={isGenerating}
-                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 text-white rounded-lg shadow-md transition-all text-sm font-medium ${isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg'}`}
+                        className={`hidden md:flex flex-1 md:flex-none items-center justify-center gap-2 px-6 py-2 text-white rounded-lg shadow-md transition-all text-xs font-medium ${isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg'}`}
                     >
-                        {isGenerating ? 'Processing...' : <><Download size={18} /> Download PDF</>}
+                        {isGenerating ? '...' : <><Download size={16} /> PDF</>}
                     </button>
                 </div>
             </div>

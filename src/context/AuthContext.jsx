@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
+import { storageService } from '../lib/storageService';
 
 const AuthContext = createContext();
 
@@ -9,100 +10,176 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
+    const [isGuest, setIsGuest] = useState(localStorage.getItem('isGuest') === 'true');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check active session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setIsLoading(false);
-        }).catch(err => {
-            console.error('Session check failed', err);
-            setIsLoading(false);
-        });
+        const checkAuth = async () => {
+            if (isGuest) {
+                const localUser = await storageService.getLocalUser();
+                setUser(localUser);
+                setIsLoading(false);
+            } else {
+                // Check active session
+                supabase.auth.getSession().then(({ data: { session } }) => {
+                    setUser(session?.user ?? null);
+                    setIsLoading(false);
+                }).catch(err => {
+                    console.error('Session check failed', err);
+                    setIsLoading(false);
+                });
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-            setIsLoading(false);
-        });
+                const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+                    setUser(session?.user ?? null);
+                    setIsLoading(false);
+                });
 
-        return () => subscription.unsubscribe();
+                return () => subscription.unsubscribe();
+            }
+        };
+        checkAuth();
     }, []);
 
     const login = async (email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (error) {
-            toast.error(error.message);
+        if (isGuest) {
+            const localUser = await storageService.getLocalUser();
+            if (localUser && localUser.email === email && localUser.password === password) {
+                setUser(localUser);
+                toast.success('Welcome back!');
+                return true;
+            }
+            toast.error('Invalid credentials');
             return false;
-        }
+        } else {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            });
 
-        toast.success('Welcome back!');
-        return true;
+            if (error) {
+                toast.error(error.message);
+                return false;
+            }
+
+            toast.success('Welcome back!');
+            return true;
+        }
     };
 
     const register = async (name, email, password, country, currency, address) => {
-        const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-                data: {
+        if (isGuest) {
+            const newUser = {
+                id: crypto.randomUUID(),
+                email,
+                password,
+                user_metadata: {
                     full_name: name,
                     country,
                     currency,
                     address,
-
-                    // We also map these to expected profile fields for easier access in app
-                    name: name,
-                    email: email,
-                    phone: ''
+                    name,
+                }
+            };
+            await storageService.setLocalUser(newUser);
+            setUser(newUser);
+            toast.success('Guest account created!');
+            return true;
+        } else {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        full_name: name,
+                        country,
+                        currency,
+                        address,
+                        name: name,
+                        email: email,
+                        phone: ''
+                    },
                 },
-            },
-        });
+            });
 
-        if (error) {
-            toast.error(error.message);
-            return false;
+            if (error) {
+                toast.error(error.message);
+                return false;
+            }
+
+            toast.success('Account created! Please check your email.');
+            return true;
         }
-
-        toast.success('Account created! Please check your email.');
-        return true;
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
-        setUser(null);
+        if (isGuest) {
+            localStorage.removeItem('isGuest');
+            localStorage.removeItem('local_user');
+            setIsGuest(false);
+            setUser(null);
+        } else {
+            await supabase.auth.signOut();
+            setUser(null);
+        }
         toast.success('Logged out');
     };
 
-    const updateProfile = async (updates) => {
-        const { error } = await supabase.auth.updateUser({
-            data: updates
-        });
-
-        if (error) {
-            toast.error(error.message);
-            return false;
-        }
-
-        // Manually update local state to reflect changes immediately
-        setUser(prev => ({
-            ...prev,
+    const continueAsGuest = async () => {
+        const guestUser = {
+            id: 'guest',
+            email: 'guest@example.com',
             user_metadata: {
-                ...prev.user_metadata,
-                ...updates
+                full_name: 'Guest User',
+                name: 'Guest User',
+                currency: '$'
             }
-        }));
-
-        toast.success('Profile updated successfully');
+        };
+        localStorage.setItem('isGuest', 'true');
+        await storageService.setLocalUser(guestUser);
+        setIsGuest(true);
+        setUser(guestUser);
+        toast.success('Continuing as Guest');
         return true;
     };
 
+    const updateProfile = async (updates) => {
+        if (isGuest) {
+            const updatedUser = {
+                ...user,
+                user_metadata: {
+                    ...user.user_metadata,
+                    ...updates
+                }
+            };
+            await storageService.setLocalUser(updatedUser);
+            setUser(updatedUser);
+            toast.success('Profile updated successfully');
+            return true;
+        } else {
+            const { error } = await supabase.auth.updateUser({
+                data: updates
+            });
+
+            if (error) {
+                toast.error(error.message);
+                return false;
+            }
+
+            setUser(prev => ({
+                ...prev,
+                user_metadata: {
+                    ...prev.user_metadata,
+                    ...updates
+                }
+            }));
+
+            toast.success('Profile updated successfully');
+            return true;
+        }
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, register, logout, updateProfile }}>
+        <AuthContext.Provider value={{ user, isLoading, isGuest, login, register, logout, updateProfile, continueAsGuest }}>
             {!isLoading && children}
         </AuthContext.Provider>
     );
