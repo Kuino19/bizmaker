@@ -1,17 +1,22 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, Edit, Mail, Save } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Edit, Mail, Share2 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
 import InvoiceTemplate from '../../components/InvoiceTemplate';
+import { storageService } from '../../lib/storageService';
+import { calculateDocumentTotals } from '../../lib/documentUtils';
 
 const DocumentPreview = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { docData, docType, themeColor, currency, logo } = location.state || {};
+    const { docData, docType, currency, logo, status } = location.state || {};
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [emailMessage, setEmailMessage] = useState(`Please find attached your ${docType || 'document'}.`);
+    const { total } = calculateDocumentTotals(docData?.items || [], docData?.taxRate || 0, docData?.discount || 0);
+    const documentTotal = docData?.total ?? total;
 
     if (!docData) {
         return (
@@ -103,12 +108,18 @@ const DocumentPreview = () => {
                 to_email: docData.recipient.email,
                 from_name: docData.sender.name || 'BizMaker User',
                 invoice_number: docData.number,
-                amount: `${currency}${docData.total?.toFixed(2) || '0.00'}`,
-                message: `Please find attached your ${docType}.`,
+                amount: `${currency}${documentTotal.toFixed(2)}`,
+                message: emailMessage,
                 content: base64data
             };
 
             await emailjs.send(serviceId, templateId, templateParams, publicKey);
+            if (docData.id) {
+                await storageService.markDocumentEmailed(docData.id);
+                if (docType === 'Invoice' && !['Paid', 'Cancelled'].includes(status)) {
+                    await storageService.updateInvoiceStatus(docData.id, 'Sent');
+                }
+            }
 
             toast.success('Email sent successfully!', { id: toastId });
         } catch (error) {
@@ -116,6 +127,20 @@ const DocumentPreview = () => {
             toast.error('Failed to send email: ' + (error.text || error.message), { id: toastId });
         } finally {
             setIsSending(false);
+        }
+    };
+
+    const handleShare = async () => {
+        const text = `${docType} ${docData.number} for ${docData.recipient?.name || 'client'}: ${currency}${documentTotal.toFixed(2)}`;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title: text, text });
+            } else {
+                await navigator.clipboard.writeText(text);
+                toast.success('Summary copied');
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') toast.error('Unable to share document');
         }
     };
 
@@ -150,6 +175,13 @@ const DocumentPreview = () => {
                         <Mail size={16} /> {isSending ? 'Email' : 'Email'}
                     </button>
 
+                    <button
+                        onClick={handleShare}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-xs font-medium border border-gray-200"
+                    >
+                        {navigator.share ? <Share2 size={16} /> : <Copy size={16} />} Share
+                    </button>
+
 
                     <button
                         onClick={generatePDF}
@@ -163,7 +195,16 @@ const DocumentPreview = () => {
 
             {/* Preview Area */}
             <div className="flex-1 overflow-auto p-8 flex justify-center">
-                <div>
+                <div className="space-y-4">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Email Message</label>
+                        <textarea
+                            value={emailMessage}
+                            onChange={(e) => setEmailMessage(e.target.value)}
+                            rows="2"
+                            className="w-full text-sm p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                        />
+                    </div>
                     <InvoiceTemplate
                         docData={docData}
                         docType={docType}

@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { getDefaultStatus } from './documentUtils';
 
 const isGuest = () => localStorage.getItem('isGuest') === 'true';
 
@@ -8,6 +9,15 @@ const getLocal = (key) => {
 };
 
 const setLocal = (key, data) => {
+    localStorage.setItem(key, JSON.stringify(data));
+};
+
+const getObjectLocal = (key) => {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : {};
+};
+
+const setObjectLocal = (key, data) => {
     localStorage.setItem(key, JSON.stringify(data));
 };
 
@@ -48,22 +58,27 @@ export const storageService = {
     },
 
     async saveInvoice(invoiceData) {
+        const payload = {
+            ...invoiceData,
+            status: invoiceData.status || getDefaultStatus(invoiceData.doc_type)
+        };
+
         if (!isGuest()) {
             const { data, error } = await supabase
                 .from('invoices')
-                .upsert([invoiceData])
+                .upsert([payload])
                 .select();
             if (error) throw error;
             return data[0];
         } else {
             const invoices = getLocal('invoices');
-            const index = invoices.findIndex(inv => inv.id === invoiceData.id);
+            const index = invoices.findIndex(inv => inv.id === payload.id);
             const now = new Date().toISOString();
             
             const updatedInvoice = {
-                ...invoiceData,
+                ...payload,
                 updated_at: now,
-                created_at: invoiceData.created_at || now
+                created_at: payload.created_at || now
             };
 
             if (index > -1) {
@@ -89,6 +104,39 @@ export const storageService = {
             const invoices = getLocal('invoices').filter(inv => inv.id !== id);
             setLocal('invoices', invoices);
         }
+    },
+
+    async updateInvoiceStatus(id, status) {
+        if (!isGuest()) {
+            const { data, error } = await supabase
+                .from('invoices')
+                .update({ status, updated_at: new Date().toISOString() })
+                .eq('id', id)
+                .select();
+            if (error) throw error;
+            return data?.[0];
+        }
+
+        const invoices = getLocal('invoices');
+        const updated = invoices.map(inv => (
+            inv.id === id ? { ...inv, status, updated_at: new Date().toISOString() } : inv
+        ));
+        setLocal('invoices', updated);
+        return updated.find(inv => inv.id === id);
+    },
+
+    async markDocumentEmailed(id) {
+        const meta = getObjectLocal('documentMeta');
+        meta[id] = {
+            ...(meta[id] || {}),
+            emailedAt: new Date().toISOString()
+        };
+        setObjectLocal('documentMeta', meta);
+        return meta[id];
+    },
+
+    async getDocumentMeta() {
+        return getObjectLocal('documentMeta');
     },
 
     // Clients
@@ -137,7 +185,7 @@ export const storageService = {
     },
 
     async deleteClient(id) {
-        if (!isNative) {
+        if (!isGuest()) {
             const { error } = await supabase
                 .from('clients')
                 .delete()

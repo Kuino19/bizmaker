@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
-import { FileText, Download } from 'lucide-react';
+import { Download, FileText, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { escapeCsvValue, mapStoredDocumentToEditor, mapStoredDocumentToSummary, STATUS_STYLES } from '../../lib/documentUtils';
 
 const LedgerItem = ({ item, currency, onDownload }) => (
     <tr className="border-b border-gray-200 hover:bg-gray-50 transition-colors group text-sm">
@@ -10,11 +11,8 @@ const LedgerItem = ({ item, currency, onDownload }) => (
         <td className="py-3 px-4 font-medium text-gray-900">{item.recipient?.name || 'Unknown'}</td>
         <td className="py-3 px-4 text-gray-500">{item.number}</td>
         <td className="py-3 px-4">
-            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${item.docType === 'Receipt'
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-amber-50 text-amber-700 border-amber-200'
-                }`}>
-                {item.docType === 'Receipt' ? 'CLEARED' : 'PENDING'}
+            <span className={`px-2 py-0.5 rounded text-xs font-medium border ${STATUS_STYLES[item.status] || STATUS_STYLES.Pending}`}>
+                {item.status}
             </span>
         </td>
         <td className="py-3 px-4 text-right font-mono font-medium text-gray-900">
@@ -39,30 +37,16 @@ const Finance = () => {
     const [userCurrency, setUserCurrency] = useState('$');
     const [isLoading, setIsLoading] = useState(true);
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('All');
 
-    useEffect(() => {
-        if (user) {
-            setUserCurrency(user.user_metadata?.currency || '$');
-            fetchBookings();
-        }
-    }, [user]);
-
-    const fetchBookings = async () => {
+    const fetchBookings = useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await storageService.getInvoices(user.id);
 
             if (data) {
-                const mapped = data.map(doc => ({
-                    id: doc.id,
-                    number: doc.unique_number,
-                    docType: doc.doc_type,
-                    date: doc.date,
-                    recipient: { name: doc.recipient_name },
-                    total: doc.total,
-                    currency: doc.currency,
-                    ...doc
-                }));
+                const mapped = data.map(mapStoredDocumentToSummary);
                 setBookings(mapped);
             }
         } catch (error) {
@@ -70,47 +54,79 @@ const Finance = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            setUserCurrency(user.user_metadata?.currency || '$');
+            fetchBookings();
+        }
+    }, [fetchBookings, user]);
+
+    const availableYears = useMemo(() => {
+        const years = bookings.map(b => new Date(b.date).getFullYear()).filter(Boolean);
+        return [...new Set([new Date().getFullYear(), ...years])].sort((a, b) => b - a);
+    }, [bookings]);
+
+    const filteredBookings = useMemo(() => {
+        const term = searchTerm.trim().toLowerCase();
+        return bookings
+            .filter(b => new Date(b.date).getFullYear() === Number(selectedYear))
+            .filter(b => statusFilter === 'All' || b.status === statusFilter || b.docType === statusFilter)
+            .filter(b => {
+                if (!term) return true;
+                return [b.recipient?.name, b.number, b.docType, b.status]
+                    .some(value => String(value || '').toLowerCase().includes(term));
+            })
+            .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+    }, [bookings, searchTerm, selectedYear, statusFilter]);
 
     // Derived Stats (Financial Year)
-    const totalRevenue = bookings
-        .filter(b => b.docType === 'Receipt' && new Date(b.date).getFullYear() === selectedYear)
+    const totalRevenue = filteredBookings
+        .filter(b => b.docType === 'Receipt' || b.status === 'Paid')
         .reduce((acc, b) => acc + (b.total || 0), 0);
 
-    const totalPending = bookings
-        .filter(b => b.docType === 'Invoice' && new Date(b.date).getFullYear() === selectedYear)
+    const totalPending = filteredBookings
+        .filter(b => b.docType === 'Invoice' && ['Sent', 'Pending', 'Overdue'].includes(b.status))
+        .reduce((acc, b) => acc + (b.total || 0), 0);
+
+    const overdueTotal = filteredBookings
+        .filter(b => b.status === 'Overdue')
         .reduce((acc, b) => acc + (b.total || 0), 0);
 
     const handleDownloadPDF = (doc) => {
+        const editorDoc = mapStoredDocumentToEditor(doc);
         navigate('/preview', {
             state: {
-                docData: doc,
-                docType: doc.docType,
-                themeColor: doc.themeColor,
-                currency: doc.currency,
-                logo: doc.logo
+                docData: editorDoc,
+                docType: editorDoc.docType,
+                templateId: editorDoc.templateId,
+                currency: editorDoc.currency,
+                logo: editorDoc.logo,
+                status: editorDoc.status
             }
         });
     };
 
     const handleExportCSV = async () => {
         const headers = ["Date", "Type", "Ref", "Client", "Status", "Amount"];
-        const rows = bookings.map(b => [
+        const rows = filteredBookings.map(b => [
             b.date,
             b.docType,
             b.number,
-            b.recipient.name,
-            b.docType === 'Receipt' ? 'CLEARED' : 'PENDING',
+            b.recipient?.name,
+            b.status,
             b.total?.toFixed(2)
         ]);
 
-        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const csvContent = [headers, ...rows].map(r => r.map(escapeCsvValue).join(',')).join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.download = `financial_ledger_${selectedYear}.csv`;
         link.click();
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -124,9 +140,37 @@ const Finance = () => {
                             <FileText size={20} className="text-gray-500" />
                             <h2 className="text-lg font-bold text-gray-800 uppercase tracking-wide">General Ledger</h2>
                         </div>
-                        <div className="text-sm text-gray-500 font-mono">
-                            FY {selectedYear}
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(Number(e.target.value))}
+                            className="text-sm text-gray-600 font-mono bg-white border border-gray-200 rounded px-2 py-1"
+                        >
+                            {availableYears.map(year => <option key={year} value={year}>FY {year}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="px-6 py-4 border-b border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="relative">
+                            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Search ledger"
+                                className="w-full pl-10 pr-3 py-2 border border-gray-200 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
                         </div>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="border border-gray-200 rounded px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                            <option value="All">All transactions</option>
+                            <option value="Invoice">Invoices</option>
+                            <option value="Receipt">Receipts</option>
+                            <option value="Paid">Paid</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -142,14 +186,20 @@ const Finance = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {bookings.length === 0 ? (
+                                {isLoading ? (
+                                    <tr>
+                                        <td colSpan="6" className="p-12 text-center text-gray-400 font-mono text-sm">
+                                            -- LOADING TRANSACTIONS --
+                                        </td>
+                                    </tr>
+                                ) : filteredBookings.length === 0 ? (
                                     <tr>
                                         <td colSpan="6" className="p-12 text-center text-gray-400 font-mono text-sm">
                                             -- NO RECORDED TRANSACTIONS --
                                         </td>
                                     </tr>
                                 ) : (
-                                    bookings.map(booking => (
+                                    filteredBookings.map(booking => (
                                         <LedgerItem key={booking.id} item={booking} currency={userCurrency} onDownload={handleDownloadPDF} />
                                     ))
                                 )}
@@ -172,6 +222,10 @@ const Finance = () => {
                             <div className="pt-4 border-t border-slate-700">
                                 <p className="text-slate-400 text-xs mb-1">Pending Invoices</p>
                                 <p className="text-lg font-mono text-amber-400">{userCurrency}{totalPending.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                            </div>
+                            <div className="pt-4 border-t border-slate-700">
+                                <p className="text-slate-400 text-xs mb-1">Overdue</p>
+                                <p className="text-lg font-mono text-red-300">{userCurrency}{overdueTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                             </div>
                         </div>
                     </div>

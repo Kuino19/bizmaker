@@ -27,7 +27,7 @@ const Sidebar = ({ className, onLinkClick }) => {
     };
 
     const navItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         { icon: FilePlus, label: 'New Invoice', path: '/editor' },
         { icon: CheckCircle, label: 'New Receipt', path: '/receipt-editor' },
         { icon: History, label: 'Invoices', path: '/history' },

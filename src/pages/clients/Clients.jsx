@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { Users, Plus, Trash2, Mail, MapPin } from 'lucide-react';
@@ -11,11 +11,7 @@ const Clients = () => {
     const [newClient, setNewClient] = useState({ name: '', email: '', address: '' });
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        if (user) fetchClients();
-    }, [user]);
-
-    const fetchClients = async () => {
+    const fetchClients = useCallback(async () => {
         setIsLoading(true);
         try {
             const data = await storageService.getClients(user.id);
@@ -25,7 +21,11 @@ const Clients = () => {
             console.error(error);
         }
         setIsLoading(false);
-    };
+    }, [user]);
+
+    useEffect(() => {
+        if (user) fetchClients();
+    }, [fetchClients, user]);
 
     const saveClient = async (e) => {
         e.preventDefault();

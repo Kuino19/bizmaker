@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { supabase } from '../supabaseClient';
 import { storageService } from '../lib/storageService';
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
             }
         };
         checkAuth();
-    }, []);
+    }, [isGuest]);
 
     const login = async (email, password) => {
         if (isGuest) {
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
             toast.error('Invalid credentials');
             return false;
         } else {
-            const { data, error } = await supabase.auth.signInWithPassword({
+            const { error } = await supabase.auth.signInWithPassword({
                 email,
                 password,
             });
@@ -85,7 +85,7 @@ export const AuthProvider = ({ children }) => {
             toast.success('Guest account created!');
             return true;
         } else {
-            const { data, error } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {

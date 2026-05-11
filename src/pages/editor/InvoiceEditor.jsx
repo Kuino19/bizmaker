@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { storageService } from '../../lib/storageService';
 import {
     Plus, Trash2, FileText, CheckCircle, Settings, Image as ImageIcon,
-    RefreshCcw, Eye
+    RefreshCcw, Eye, Repeat
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+    calculateDocumentTotals,
+    DOCUMENT_STATUSES,
+    getDefaultStatus,
+    getNextDocumentNumber
+} from '../../lib/documentUtils';
 
 const SidebarInput = ({ label, value, onChange, type = "text", placeholder }) => (
     <div className="mb-3">
@@ -26,6 +32,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const initialData = location.state?.invoice;
+    const editingExisting = Boolean(initialData?.id);
 
     // Determine starting mode
     const startType = initialDocType || initialData?.docType || 'Invoice';
@@ -35,31 +42,23 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     const [templateId, setTemplateId] = useState(initialData?.templateId || 'professional');
     const [currency, setCurrency] = useState(initialData?.currency || user?.user_metadata?.currency || '$');
     const [logo, setLogo] = useState(initialData?.logo || user?.user_metadata?.logo || null);
+    const [status, setStatus] = useState(initialData?.status || getDefaultStatus(startType));
 
     // Document Data
     const [clients, setClients] = useState([]);
 
-    useEffect(() => {
-        if (user) {
-            fetchClients();
-            if (!logo && user.user_metadata?.logo) {
-                setLogo(user.user_metadata.logo);
-            }
-        }
-    }, [user]);
-
-    const fetchClients = async () => {
+    const fetchClients = useCallback(async () => {
         try {
             const data = await storageService.getClients(user.id);
             if (data) setClients(data);
         } catch (error) {
             console.error('Error fetching clients:', error);
         }
-    };
+    }, [user]);
 
     const [docData, setDocData] = useState(initialData || {
         id: Date.now().toString(),
-        number: (startType === 'Receipt' ? 'REC-' : 'INV-') + Math.floor(1000 + Math.random() * 9000), // Random ID for fresh doc
+        number: '',
         date: new Date().toISOString().slice(0, 10),
         dueDate: new Date(Date.now() + 12096e5).toISOString().slice(0, 10), // +14 days
         sender: {
@@ -83,10 +82,39 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
         discount: 0
     });
 
+    useEffect(() => {
+        if (!user) return;
+        fetchClients();
+        if (!logo && user.user_metadata?.logo) {
+            setLogo(user.user_metadata.logo);
+        }
+    }, [fetchClients, logo, user]);
+
+    useEffect(() => {
+        const assignDocumentNumber = async () => {
+            if (!user || editingExisting || docData.number) return;
+
+            try {
+                const documents = await storageService.getInvoices(user.id);
+                const number = getNextDocumentNumber(documents || [], docType, user.user_metadata || {});
+                setDocData(prev => ({ ...prev, number }));
+            } catch (error) {
+                console.error('Unable to create next document number:', error);
+                setDocData(prev => ({
+                    ...prev,
+                    number: `${docType === 'Receipt' ? 'REC' : 'INV'}-${Date.now().toString().slice(-4)}`
+                }));
+            }
+        };
+
+        assignDocumentNumber();
+    }, [docData.number, docType, editingExisting, user]);
+
     // --- Calculations ---
-    const subtotal = docData.items.reduce((acc, item) => acc + (item.quantity * item.price), 0);
-    const taxAmount = (subtotal * (docData.taxRate / 100));
-    const total = subtotal + taxAmount - docData.discount;
+    const { subtotal, total } = useMemo(
+        () => calculateDocumentTotals(docData.items, docData.taxRate, docData.discount),
+        [docData.discount, docData.items, docData.taxRate]
+    );
 
     // --- Handlers ---
     // --- Effects ---
@@ -135,6 +163,25 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
         setDocData(prev => ({ ...prev, items: prev.items.filter(item => item.id !== id) }));
     };
 
+    const convertInvoiceToReceipt = async () => {
+        if (docType !== 'Invoice') return;
+
+        try {
+            const documents = await storageService.getInvoices(user.id);
+            setDocType('Receipt');
+            setStatus('Paid');
+            setDocData(prev => ({
+                ...prev,
+                id: crypto.randomUUID(),
+                number: getNextDocumentNumber(documents || [], 'Receipt', user.user_metadata || {}),
+                dueDate: new Date().toISOString().slice(0, 10)
+            }));
+            toast.success('Converted to a receipt draft');
+        } catch (error) {
+            toast.error(error.message || 'Unable to convert invoice');
+        }
+    };
+
     const saveInvoice = async () => {
         const toastId = toast.loading('Saving document...');
 
@@ -160,7 +207,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 currency: currency,
                 template_id: templateId,
                 logo: logo,
-                status: 'Pending',
+                status,
                 updated_at: new Date().toISOString()
             };
 
@@ -218,7 +265,8 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                     docType,
                     templateId,
                     currency,
-                    logo
+                    logo,
+                    status
                 }
             });
         }
@@ -243,6 +291,14 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                     >
                         <RefreshCcw size={16} /> Reset
                     </button>
+                    {docType === 'Invoice' && (
+                        <button
+                            onClick={convertInvoiceToReceipt}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-lg shadow-sm hover:bg-emerald-100 transition-colors text-sm font-medium border border-emerald-200"
+                        >
+                            <Repeat size={16} /> Convert
+                        </button>
+                    )}
                     <button
                         onClick={handlePreview}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all text-sm font-medium"
@@ -268,13 +324,19 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                                     {!strictMode ? (
                                         <>
                                             <button
-                                                onClick={() => setDocType('Invoice')}
+                                                onClick={() => {
+                                                    setDocType('Invoice');
+                                                    setStatus(getDefaultStatus('Invoice'));
+                                                }}
                                                 className={`p-2 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${docType === 'Invoice' ? 'bg-indigo-600 text-white' : 'bg-white border hover:bg-gray-50'}`}
                                             >
                                                 <FileText size={16} /> Invoice
                                             </button>
                                             <button
-                                                onClick={() => setDocType('Receipt')}
+                                                onClick={() => {
+                                                    setDocType('Receipt');
+                                                    setStatus(getDefaultStatus('Receipt'));
+                                                }}
                                                 className={`p-2 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${docType === 'Receipt' ? 'bg-emerald-600 text-white' : 'bg-white border hover:bg-gray-50'}`}
                                             >
                                                 <CheckCircle size={16} /> Receipt
@@ -288,6 +350,19 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                                 </div>
                                 <div className="space-y-4">
                                     <SidebarInput label="Currency Symbol" value={currency} onChange={setCurrency} />
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                                        <select
+                                            value={status}
+                                            onChange={(e) => setStatus(e.target.value)}
+                                            className="w-full text-sm p-2 border border-gray-200 rounded focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all bg-white"
+                                        >
+                                            {DOCUMENT_STATUSES.map(item => (
+                                                <option key={item} value={item}>{item}</option>
+                                            ))}
+                                        </select>
+                                    </div>
 
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Style Template</label>

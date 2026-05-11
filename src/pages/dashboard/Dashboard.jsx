@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle, FileText, TrendingUp, Users } from 'lucide-react';
 import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
-import { FileText, Users, TrendingUp, ArrowRight, CheckCircle } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { isOverdueInvoice, mapStoredDocumentToSummary, STATUS_STYLES } from '../../lib/documentUtils';
 
 const QuickAction = ({ to, icon: Icon, title, desc, color }) => (
     <Link to={to} className={`block p-6 rounded-2xl border transition-all hover:shadow-md ${color} group`}>
         <div className="flex items-center justify-between mb-4">
             <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm text-white">
-                <Icon size={24} />
+                {React.createElement(Icon, { size: 24 })}
             </div>
             <ArrowRight size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0" />
         </div>
@@ -24,27 +25,62 @@ const ActivityItem = ({ invoice, currency }) => (
         </div>
         <div className="flex-1 min-w-0">
             <p className="font-medium text-gray-900 truncate">
-                {invoice.docType === 'Receipt' ? 'Payment received' : 'Invoice created'} for <span className="font-bold">{invoice.recipient.name}</span>
+                {invoice.docType === 'Receipt' ? 'Payment received' : 'Invoice created'} for <span className="font-bold">{invoice.recipient?.name || 'Unknown client'}</span>
             </p>
             <p className="text-xs text-gray-500">
-                {invoice.number} • {new Date(invoice.date).toLocaleDateString()}
+                {invoice.number} - {new Date(invoice.date).toLocaleDateString()}
             </p>
         </div>
         <div className="text-right">
             <p className="font-bold text-gray-900">{currency}{invoice.total?.toFixed(2)}</p>
-            <p className={`text-[10px] uppercase font-bold ${invoice.docType === 'Receipt' ? 'text-emerald-600' : 'text-amber-500'}`}>
-                {invoice.docType === 'Receipt' ? 'Completed' : 'Pending'}
-            </p>
+            <span className={`text-[10px] uppercase font-bold border rounded-full px-2 py-0.5 ${STATUS_STYLES[invoice.status] || STATUS_STYLES.Pending}`}>
+                {invoice.status}
+            </span>
         </div>
     </div>
 );
 
+const tips = [
+    {
+        title: 'Customize Your Brand',
+        desc: 'Add your logo in Settings so invoices and receipts look consistent everywhere.',
+        link: '/settings',
+        cta: 'Open Settings'
+    },
+    {
+        title: 'Track Your Growth',
+        desc: 'Use the Finance ledger to compare cleared revenue, pending invoices, and overdue work.',
+        link: '/finance',
+        cta: 'Go to Finance'
+    },
+    {
+        title: 'Build Your Client List',
+        desc: 'Save regular clients once and pull them into new invoices faster next time.',
+        link: '/clients',
+        cta: 'Manage Clients'
+    },
+    {
+        title: 'Get Paid Faster',
+        desc: 'Mark invoices as Sent, Paid, or Overdue so the dashboard reflects what needs attention.',
+        link: '/history',
+        cta: 'Review Invoices'
+    }
+];
+
 const Dashboard = () => {
     const { user } = useAuth();
     const [userCurrency, setUserCurrency] = useState('$');
-    const [stats, setStats] = useState({ revenue: 0, invoiceCount: 0, clientCount: 0 });
+    const [stats, setStats] = useState({
+        revenue: 0,
+        invoiceCount: 0,
+        clientCount: 0,
+        pending: 0,
+        overdue: 0,
+        topClient: 'None yet'
+    });
     const [recentInvoices, setRecentInvoices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentTipIndex, setCurrentTipIndex] = useState(0);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -53,163 +89,75 @@ const Dashboard = () => {
         return 'Good Evening';
     };
 
-    useEffect(() => {
-        if (user) {
-            setUserCurrency(user.user_metadata?.currency || '$');
-            fetchStats();
-        }
-    }, [user]);
-
-    const fetchStats = async () => {
+    const fetchStats = useCallback(async () => {
         setIsLoading(true);
         try {
             const invoices = await storageService.getInvoices(user.id);
-
-            if (invoices) {
-                const revenue = invoices
-                    .filter(inv => inv.doc_type === 'Receipt')
-                    .reduce((acc, inv) => acc + (inv.total || 0), 0);
-
-                setStats(prev => ({
-                    ...prev,
-                    revenue,
-                    invoiceCount: invoices.length
-                }));
-
-                const mappedRecent = invoices.slice(0, 10).map(inv => ({
-                    id: inv.id,
-                    recipient: { name: inv.recipient_name },
-                    number: inv.unique_number,
-                    date: inv.date,
-                    currency: inv.currency,
-                    total: inv.total,
-                    docType: inv.doc_type // Needed for icon/color
-                }));
-                setRecentInvoices(mappedRecent);
-            }
-
+            const mapped = (invoices || []).map(mapStoredDocumentToSummary);
+            const revenue = mapped
+                .filter(inv => inv.docType === 'Receipt' || inv.status === 'Paid')
+                .reduce((acc, inv) => acc + (inv.total || 0), 0);
+            const pending = mapped
+                .filter(inv => inv.docType === 'Invoice' && ['Sent', 'Pending', 'Overdue'].includes(inv.status))
+                .reduce((acc, inv) => acc + (inv.total || 0), 0);
+            const overdue = mapped.filter(isOverdueInvoice).length;
+            const clientTotals = mapped.reduce((acc, inv) => {
+                const name = inv.recipient?.name || 'Unknown';
+                acc[name] = (acc[name] || 0) + (inv.total || 0);
+                return acc;
+            }, {});
+            const topClient = Object.entries(clientTotals).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None yet';
             const clients = await storageService.getClients(user.id);
-            setStats(prev => ({ ...prev, clientCount: clients?.length || 0 }));
 
+            setStats({
+                revenue,
+                invoiceCount: mapped.length,
+                clientCount: clients?.length || 0,
+                pending,
+                overdue,
+                topClient
+            });
+            setRecentInvoices(mapped.slice(0, 10));
         } catch (error) {
             console.error('Error fetching dashboard stats:', error);
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user]);
 
-    const [currentTipIndex, setCurrentTipIndex] = useState(0);
-
-    const tips = [
-        {
-            title: "Customize Your Brand 🎨",
-            desc: "Did you know you can add your logo to receipts? It makes your documents look much more professional.",
-            link: "/receipt-editor",
-            cta: "Try it now"
-        },
-        {
-            title: "Track Your Growth 📈",
-            desc: "Check the new Finance Ledger to see exactly how much revenue you've cleared this year versus pending invoices.",
-            link: "/finance",
-            cta: "Go to Finance"
-        },
-        {
-            title: "Build Your Rolodex 👥",
-            desc: "Save regular clients to your Address Book. You can select them fast next time you invoice.",
-            link: "/clients",
-            cta: "Manage Clients"
-        },
-        {
-            title: "Go Paperless 🌳",
-            desc: "You can download any past invoice or receipt as a PDF instantly from the History page.",
-            link: "/history",
-            cta: "View History"
-        },
-        {
-            title: "Tax Time Made Easy 🏛️",
-            desc: "Need to file taxes? Download your entire Financial Year ledger as a CSV file in one click.",
-            link: "/finance",
-            cta: "Get Report"
-        },
-        {
-            title: "Work On The Go 📱",
-            desc: "BizMaker is fully mobile-optimized. Send an invoice right from the job site on your phone.",
-            link: "/editor",
-            cta: "Try Mobile View"
-        },
-        {
-            title: "Get Paid Faster 💸",
-            desc: "Clear, professional invoices with proper due dates help clients pay you on time.",
-            link: "/editor",
-            cta: "Create Invoice"
-        },
-        {
-            title: "Stay Organized 🗂️",
-            desc: "Keep your 'Pending' and 'Cleared' payments separate so you never lose track of money owed.",
-            link: "/finance",
-            cta: "Check Status"
-        },
-        {
-            title: "Build Trust 🤝",
-            desc: "sending consistent, branded receipts helps build long-term trust with your customers.",
-            link: "/receipt-editor",
-            cta: "Send Receipt"
-        },
-        {
-            title: "Clone & Go ⚡",
-            desc: "Have a repeat job? Open an old invoice in History and hit 'Edit' (concept) to save time.",
-            link: "/history",
-            cta: "See History"
+    useEffect(() => {
+        if (user) {
+            setUserCurrency(user.user_metadata?.currency || '$');
+            fetchStats();
         }
-    ];
+    }, [fetchStats, user]);
 
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentTipIndex((prev) => (prev + 1) % tips.length);
         }, 5000);
         return () => clearInterval(interval);
-    }, [tips.length]);
+    }, []);
 
     const currentTip = tips[currentTipIndex];
+    const firstName = useMemo(() => user?.user_metadata?.full_name?.split(' ')[0] || 'User', [user]);
 
     return (
         <div className="max-w-6xl mx-auto">
-            {/* Header Section */}
             <div className="mb-10">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                    {getGreeting()}, {user?.user_metadata?.full_name?.split(' ')[0] || 'User'}! 👋
+                    {getGreeting()}, {firstName}!
                 </h1>
-                <p className="text-gray-500">Here's what's happening with your business today.</p>
+                <p className="text-gray-500">Here is what is happening with your business today.</p>
             </div>
 
-            {/* Quick Actions Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                <QuickAction
-                    to="/editor"
-                    icon={FileText}
-                    title="Create Invoice"
-                    desc="Bill a client for work done"
-                    color="bg-indigo-600 border-indigo-600 shadow-indigo-100"
-                />
-                <QuickAction
-                    to="/receipt-editor"
-                    icon={CheckCircle}
-                    title="Create Receipt"
-                    desc="Record a payment received"
-                    color="bg-emerald-600 border-emerald-600 shadow-emerald-100"
-                />
-                <QuickAction
-                    to="/clients"
-                    icon={Users}
-                    title="Add New Client"
-                    desc="Build your address book"
-                    color="bg-blue-600 border-blue-600 shadow-blue-100"
-                />
+                <QuickAction to="/editor" icon={FileText} title="Create Invoice" desc="Bill a client for work done" color="bg-indigo-600 border-indigo-600 shadow-indigo-100" />
+                <QuickAction to="/receipt-editor" icon={CheckCircle} title="Create Receipt" desc="Record a payment received" color="bg-emerald-600 border-emerald-600 shadow-emerald-100" />
+                <QuickAction to="/clients" icon={Users} title="Add New Client" desc="Build your address book" color="bg-blue-600 border-blue-600 shadow-blue-100" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                {/* Main Feed Column (2/3 width) */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                         <div className="p-6 border-b border-gray-50 flex justify-between items-center sticky top-0 bg-white/95 backdrop-blur-sm z-10">
@@ -230,7 +178,7 @@ const Dashboard = () => {
                                         <FileText className="text-gray-300" size={32} />
                                     </div>
                                     <p className="text-gray-500 font-medium">No activity yet.</p>
-                                    <p className="text-sm text-gray-400">Create your first invoice to get started!</p>
+                                    <p className="text-sm text-gray-400">Create your first invoice to get started.</p>
                                 </div>
                             ) : (
                                 recentInvoices.map(inv => (
@@ -241,11 +189,9 @@ const Dashboard = () => {
                     </div>
                 </div>
 
-                {/* Sidebar Stats Column (1/3 width) */}
                 <div className="space-y-6">
                     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                         <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-4">Business Snapshot</h3>
-
                         <div className="space-y-6">
                             <div>
                                 <p className="text-sm text-gray-500 mb-1">Total Revenue</p>
@@ -253,7 +199,6 @@ const Dashboard = () => {
                                     {userCurrency}{stats.revenue.toLocaleString()}
                                 </p>
                             </div>
-
                             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
                                 <div>
                                     <p className="text-xs text-gray-500 mb-1">Documents</p>
@@ -264,10 +209,23 @@ const Dashboard = () => {
                                     <p className="text-xl font-bold text-gray-800">{stats.clientCount}</p>
                                 </div>
                             </div>
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-100">
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Pending</p>
+                                    <p className="text-xl font-bold text-amber-600">{userCurrency}{stats.pending.toLocaleString()}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Overdue</p>
+                                    <p className="text-xl font-bold text-red-600">{stats.overdue}</p>
+                                </div>
+                            </div>
+                            <div className="pt-4 border-t border-gray-100">
+                                <p className="text-xs text-gray-500 mb-1">Top Client</p>
+                                <p className="text-sm font-bold text-gray-800 truncate">{stats.topClient}</p>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Rotating Pro Tip Widget */}
                     <div className="bg-gradient-to-br from-indigo-50 to-white p-6 rounded-2xl border border-indigo-100 transition-all duration-500">
                         <div className="flex justify-between items-start mb-2">
                             <h3 className="font-bold text-indigo-900 animate-fadeIn">{currentTip.title}</h3>
@@ -283,7 +241,6 @@ const Dashboard = () => {
                         </Link>
                     </div>
                 </div>
-
             </div>
         </div>
     );

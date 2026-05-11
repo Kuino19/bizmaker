@@ -13,9 +13,9 @@ const Register = () => {
     const { register } = useAuth();
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (register(name, email, password, country, currency, address)) {
+        if (await register(name, email, password, country, currency, address)) {
             navigate('/dashboard');
         }
     };
