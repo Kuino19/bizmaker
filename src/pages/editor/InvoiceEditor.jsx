@@ -13,6 +13,7 @@ import {
     getDefaultStatus,
     getNextDocumentNumber
 } from '../../lib/documentUtils';
+import { optimizeImage } from '../../lib/imageUtils';
 
 const SidebarInput = ({ label, value, onChange, type = "text", placeholder }) => (
     <div className="mb-3">
@@ -42,6 +43,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     const [templateId, setTemplateId] = useState(initialData?.templateId || 'professional');
     const [currency, setCurrency] = useState(initialData?.currency || user?.user_metadata?.currency || '$');
     const [logo, setLogo] = useState(initialData?.logo || user?.user_metadata?.logo || null);
+    const [logoInteracted, setLogoInteracted] = useState(false);
     const [status, setStatus] = useState(initialData?.status || getDefaultStatus(startType));
 
     // Document Data
@@ -85,10 +87,11 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     useEffect(() => {
         if (!user) return;
         fetchClients();
-        if (!logo && user.user_metadata?.logo) {
+        // Only pull from profile if user hasn't touched the logo field in this session
+        if (!logo && user.user_metadata?.logo && !logoInteracted) {
             setLogo(user.user_metadata.logo);
         }
-    }, [fetchClients, logo, user]);
+    }, [fetchClients, logo, user, logoInteracted]);
 
     useEffect(() => {
         const assignDocumentNumber = async () => {
@@ -117,15 +120,31 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     );
 
     // --- Handlers ---
-    // --- Effects ---
-    // Update Favicon when logo changes
-    // --- Handlers ---
-    const handleLogoUpload = (e) => {
+    const handleLogoUpload = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => setLogo(reader.result);
-            reader.readAsDataURL(file);
+            const toastId = toast.loading('Optimizing logo...');
+            try {
+                const optimizedBlob = await optimizeImage(file, { maxWidth: 400 });
+                
+                if (user && !user.id.includes('guest')) {
+                    toast.loading('Uploading to secure storage...', { id: toastId });
+                    const publicUrl = await storageService.uploadLogo(optimizedBlob, user.id);
+                    setLogo(publicUrl);
+                    setLogoInteracted(true);
+                    toast.success('Logo updated', { id: toastId });
+                } else {
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setLogo(reader.result);
+                        setLogoInteracted(true);
+                        toast.success('Logo updated', { id: toastId });
+                    };
+                    reader.readAsDataURL(optimizedBlob);
+                }
+            } catch (error) {
+                toast.error('Failed to process logo: ' + error.message, { id: toastId });
+            }
         }
     };
 
@@ -244,7 +263,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
             console.error(error);
             let msg = error.message;
             if (msg === 'Failed to fetch') {
-                msg = 'Network error or payload too large. Try removing the logo.';
+                msg = 'Network error. Your profile data or document might be too large. Try repairing your profile in Settings.';
             }
             toast.error('Error saving: ' + msg, { id: toastId });
             return null;
@@ -399,7 +418,7 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                                         </span>
                                     </label>
                                     {logo && (
-                                        <button onClick={() => setLogo(null)} className="p-3 text-red-500 hover:bg-red-50 rounded-lg border border-gray-200">
+                                        <button onClick={() => { setLogo(null); setLogoInteracted(true); }} className="p-3 text-red-500 hover:bg-red-50 rounded-lg border border-gray-200">
                                             <Trash2 size={16} />
                                         </button>
                                     )}

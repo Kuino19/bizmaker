@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Save, Building2, MapPin, Globe, Banknote, Image, Download, Upload } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { storageService } from '../../lib/storageService';
+import { optimizeImage } from '../../lib/imageUtils';
 
 const Settings = () => {
     const { user, updateProfile } = useAuth();
@@ -19,20 +20,33 @@ const Settings = () => {
     }), [user]);
     const [formData, setFormData] = useState(initialFormData);
 
-    const handleLogoChange = (e) => {
+    const handleLogoChange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Check size (limit to 100KB to prevent metadata overflow)
-            if (file.size > 1024 * 100) {
-                alert("Logo file is too large. Please choose an image under 100KB.");
-                return;
+            const toastId = toast.loading('Optimizing logo...');
+            try {
+                // 1. Optimize on client-side (Max 400px, JPEG)
+                const optimizedBlob = await optimizeImage(file, { maxWidth: 400 });
+                
+                // 2. Upload to Supabase Storage if logged in
+                if (user && !user.id.includes('guest')) {
+                    toast.loading('Uploading to secure storage...', { id: toastId });
+                    const publicUrl = await storageService.uploadLogo(optimizedBlob, user.id);
+                    setFormData(prev => ({ ...prev, logo: publicUrl }));
+                    toast.success('Logo uploaded and optimized', { id: toastId });
+                } else {
+                    // Fallback for guests (smaller base64)
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        setFormData(prev => ({ ...prev, logo: reader.result }));
+                        toast.success('Logo optimized (stored locally)', { id: toastId });
+                    };
+                    reader.readAsDataURL(optimizedBlob);
+                }
+            } catch (error) {
+                console.error('Logo upload error:', error);
+                toast.error('Failed to process logo: ' + error.message, { id: toastId });
             }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setFormData(prev => ({ ...prev, logo: reader.result }));
-            };
-            reader.readAsDataURL(file);
         }
     };
 
@@ -108,6 +122,21 @@ const Settings = () => {
             toast.error(error.message || 'Unable to import backup');
         } finally {
             e.target.value = '';
+        }
+    };
+
+    const handleRepairProfile = async () => {
+        if (!confirm("This will clear your profile logo and reset metadata to fix 'Failed to Fetch' errors. Continue?")) return;
+        
+        try {
+            setLoading(true);
+            await updateProfile({ logo: '', full_name: formData.name });
+            setFormData(prev => ({ ...prev, logo: '' }));
+            toast.success('Profile repaired! Please try saving again.');
+        } catch (error) {
+            toast.error('Repair failed: ' + error.message);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -287,6 +316,20 @@ const Settings = () => {
                                 <input type="file" accept="application/json" className="hidden" onChange={handleImportBackup} />
                             </label>
                         </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div>
+                            <h3 className="text-sm font-bold text-red-600 uppercase tracking-wide">Troubleshooting</h3>
+                            <p className="text-xs text-gray-500">Getting 'Failed to Fetch'? Your profile data might be too large.</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleRepairProfile}
+                            className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-100 rounded-lg transition-colors"
+                        >
+                            Repair Profile Data
+                        </button>
                     </div>
 
                     <div className="pt-4 border-t border-gray-100 flex justify-end">

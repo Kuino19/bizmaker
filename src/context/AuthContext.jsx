@@ -22,7 +22,14 @@ export const AuthProvider = ({ children }) => {
             } else {
                 // Check active session
                 supabase.auth.getSession().then(({ data: { session } }) => {
-                    setUser(session?.user ?? null);
+                    const currentUser = session?.user ?? null;
+                    if (currentUser?.user_metadata) {
+                        const metadataSize = new Blob([JSON.stringify(currentUser.user_metadata)]).size;
+                        if (metadataSize > 50000) { // > 50KB
+                            console.warn('CRITICAL: User metadata is very large (' + (metadataSize / 1024).toFixed(1) + 'KB). This will cause "Failed to Fetch" errors.');
+                        }
+                    }
+                    setUser(currentUser);
                     setIsLoading(false);
                 }).catch(err => {
                     console.error('Session check failed', err);
@@ -178,8 +185,25 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const repairProfile = async () => {
+        if (!user || isGuest) return;
+        
+        // Strip out common bulky fields to restore functionality
+        const minimalMetadata = { ...user.user_metadata };
+        delete minimalMetadata.logo;
+        
+        const { error } = await supabase.auth.updateUser({
+            data: minimalMetadata
+        });
+
+        if (error) throw error;
+        
+        setUser(prev => ({ ...prev, user_metadata: minimalMetadata }));
+        return true;
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isLoading, isGuest, login, register, logout, updateProfile, continueAsGuest }}>
+        <AuthContext.Provider value={{ user, isLoading, isGuest, login, register, logout, updateProfile, continueAsGuest, repairProfile }}>
             {!isLoading && children}
         </AuthContext.Provider>
     );
@@ -192,4 +216,3 @@ export const ProtectedRoute = ({ children }) => {
     }
     return children;
 };
-

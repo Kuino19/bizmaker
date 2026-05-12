@@ -22,6 +22,30 @@ const setObjectLocal = (key, data) => {
 };
 
 export const storageService = {
+    // Storage (Logos)
+    async uploadLogo(file, userId) {
+        if (!file || !userId) return null;
+        
+        const fileExt = 'jpg'; // We optimize to JPEG in imageUtils
+        const fileName = `${userId}_${Math.random().toString(36).slice(2)}.${fileExt}`;
+        const filePath = `logos/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('assets') // Using 'assets' as the bucket name
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: true
+            });
+
+        if (uploadError) throw uploadError;
+        
+        const { data: { publicUrl } } = supabase.storage
+            .from('assets')
+            .getPublicUrl(filePath);
+            
+        return publicUrl;
+    },
+
     // Auth Helper
     async getLocalUser() {
         const user = localStorage.getItem('local_user');
