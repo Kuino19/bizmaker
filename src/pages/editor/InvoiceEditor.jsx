@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { storageService } from '../../lib/storageService';
 import {
     Plus, Trash2, FileText, CheckCircle, Settings, Image as ImageIcon,
-    RefreshCcw, Eye, Repeat
+    RefreshCcw, Eye, Repeat, Keyboard
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +14,8 @@ import {
     getNextDocumentNumber
 } from '../../lib/documentUtils';
 import { optimizeImage } from '../../lib/imageUtils';
+import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
+import ShortcutsModal from '../../components/ShortcutsModal';
 
 const SidebarInput = ({ label, value, onChange, type = "text", placeholder }) => (
     <div className="mb-3">
@@ -45,6 +47,8 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     const [logo, setLogo] = useState(initialData?.logo || user?.user_metadata?.logo || null);
     const [logoInteracted, setLogoInteracted] = useState(false);
     const [status, setStatus] = useState(initialData?.status || getDefaultStatus(startType));
+    const [showShortcuts, setShowShortcuts] = useState(false);
+    const customTheme = user?.user_metadata?.custom_template;
 
     // Document Data
     const [clients, setClients] = useState([]);
@@ -241,6 +245,14 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
 
             const savedData = await storageService.saveInvoice(invoicePayload);
 
+            // Audit log event (#15)
+            if (savedData?.id) {
+                const eventType = editingExisting ? 'updated' : 'created';
+                const label = editingExisting ? 'Document updated' : 'Document created';
+                const detail = editingExisting ? undefined : `${docType} ${docData.number} created`;
+                storageService.appendDocumentEvent(savedData.id, { type: eventType, label, detail });
+            }
+
             // 2. Auto-save Client
             if (docData.recipient.name) {
                 const existingClients = await storageService.getClients(user.id);
@@ -273,11 +285,6 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
     const handlePreview = async () => {
         const savedDoc = await saveInvoice();
         if (savedDoc) {
-            // Map back to internal format for preview if needed, or pass the savedDoc 
-            // The Preview page expects 'docData' format.
-            // We can re-construct it or just use the local state 'docData' which is up to date, 
-            // plus the logo/currency stats.
-
             navigate('/preview', {
                 state: {
                     docData: { ...docData, id: savedDoc.id },
@@ -285,14 +292,24 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                     templateId,
                     currency,
                     logo,
-                    status
+                    status,
+                    customTheme
                 }
             });
         }
     };
 
+    // Keyboard shortcuts (#12)
+    useKeyboardShortcuts([
+        { key: 's', ctrl: true, action: handlePreview, description: 'Save & Preview' },
+        { key: 'Enter', ctrl: true, action: addItem, description: 'Add line item' },
+        { key: '?', action: () => setShowShortcuts(true) }
+    ], !showShortcuts);
+
     return (
         <div className="max-w-5xl mx-auto p-4 md:p-8">
+
+            {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
 
             {/* Toolbar */}
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm sticky top-0 z-10">
@@ -304,6 +321,13 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
+                    <button
+                        onClick={() => setShowShortcuts(true)}
+                        className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors"
+                        title="Keyboard shortcuts (?)"
+                    >
+                        <Keyboard size={18} />
+                    </button>
                     <button
                         onClick={() => setDocData({ ...docData, items: [], notes: '', paymentDetails: '', discount: 0, taxRate: 0 })}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-sm font-medium border border-gray-200"
@@ -391,14 +415,18 @@ const InvoiceEditor = ({ initialDocType, strictMode = false }) => {
                                                 { id: 'tech', label: 'Tech', color: 'bg-emerald-500' },
                                                 { id: 'business', label: 'Biz', color: 'bg-blue-800' },
                                                 { id: 'creative', label: 'Fun', color: 'bg-fuchsia-500' },
-                                                { id: 'minimal', label: 'Min', color: 'bg-black' }
+                                                { id: 'minimal', label: 'Min', color: 'bg-black' },
+                                                { id: 'custom', label: 'My Brand', color: null, customColor: customTheme?.headerColor || '#4f46e5' }
                                             ].map(t => (
                                                 <button
                                                     key={t.id}
                                                     onClick={() => setTemplateId(t.id)}
                                                     className={`p-2 text-xs font-medium rounded-lg border transition-all flex items-center gap-2 ${templateId === t.id ? 'border-indigo-600 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600' : 'border-gray-200 hover:bg-gray-50'}`}
                                                 >
-                                                    <div className={`w-3 h-3 rounded-full ${t.color}`}></div>
+                                                    <div
+                                                        className={t.color ? `w-3 h-3 rounded-full ${t.color}` : 'w-3 h-3 rounded-full'}
+                                                        style={t.customColor ? { backgroundColor: t.customColor } : {}}
+                                                    />
                                                     {t.label}
                                                 </button>
                                             ))}

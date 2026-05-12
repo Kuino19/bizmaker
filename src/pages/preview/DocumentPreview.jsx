@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Edit, Mail, Share2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Edit, Mail, Share2, Loader2, Keyboard } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
 import InvoiceTemplate from '../../components/InvoiceTemplate';
 import { storageService } from '../../lib/storageService';
 import { calculateDocumentTotals } from '../../lib/documentUtils';
+import useKeyboardShortcuts from '../../hooks/useKeyboardShortcuts';
+import ShortcutsModal from '../../components/ShortcutsModal';
 
 const DocumentPreview = () => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { docData, docType, currency, logo, status } = location.state || {};
+    const { docData, docType, currency, logo, status, customTheme } = location.state || {};
     const [isGenerating, setIsGenerating] = useState(false);
     const [isSending, setIsSending] = useState(false);
+    const [showShortcuts, setShowShortcuts] = useState(false);
     const [emailMessage, setEmailMessage] = useState(`Please find attached your ${docType || 'document'}.`);
     const { total } = calculateDocumentTotals(docData?.items || [], docData?.taxRate || 0, docData?.discount || 0);
     const documentTotal = docData?.total ?? total;
@@ -143,8 +146,14 @@ const DocumentPreview = () => {
         }
     };
 
+    useKeyboardShortcuts([
+        { key: 'd', ctrl: true, action: generatePDF },
+        { key: '?', action: () => setShowShortcuts(true) }
+    ], !showShortcuts);
+
     return (
         <div className="min-h-screen bg-gray-100 flex flex-col">
+            {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
             {/* Toolbar */}
             <div className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row justify-between items-center sticky top-0 z-20 shadow-sm gap-4">
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -159,6 +168,14 @@ const DocumentPreview = () => {
                 </div>
 
                 <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                    <button
+                        onClick={() => setShowShortcuts(true)}
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-xs font-medium border border-gray-200"
+                        title="Keyboard shortcuts (?)"
+                    >
+                        <Keyboard size={14} /> Shortcuts
+                    </button>
+
                     <button
                         onClick={() => navigate(-1)}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-xs font-medium border border-gray-200"
@@ -211,6 +228,7 @@ const DocumentPreview = () => {
                             currency={currency}
                             templateId={location.state?.templateId || 'professional'}
                             logo={logo}
+                            customTheme={customTheme}
                         />
                     </div>
                 </div>

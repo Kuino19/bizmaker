@@ -1,6 +1,6 @@
 import React from 'react';
 
-const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional', logo, docType = 'Invoice' }) => {
+const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional', logo, docType = 'Invoice', customTheme }) => {
 
     // Helper to avoid crashes
     const safeData = docData || {};
@@ -91,7 +91,24 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
             accent: '#000000',
             borderStyle: 'rounded-none',
             labelStyle: { fontSize: '0.75rem', color: COLORS.black, fontWeight: 500, textTransform: 'uppercase', borderBottom: '1px solid black', paddingBottom: '4px', display: 'inline-block' }
-        }
+        },
+        custom: (() => {
+            const ct = customTheme || { headerColor: '#4f46e5', accentColor: '#4f46e5', font: 'sans', corners: 'rounded' };
+            const fontClass = ct.font === 'mono' ? 'font-mono' : ct.font === 'serif' ? 'font-serif' : 'font-sans';
+            const borderStyle = ct.corners === 'sharp' ? 'rounded-none' : ct.corners === 'pill' ? 'rounded-2xl' : 'rounded-lg';
+            return {
+                font: fontClass,
+                style: { backgroundColor: COLORS.white },
+                headerStyle: { backgroundColor: ct.headerColor },
+                headerTitleStyle: { color: COLORS.white },
+                headerTextStyle: { color: 'rgba(255,255,255,0.85)' },
+                docTypeStyle: { color: 'rgba(255,255,255,0.2)' },
+                detailsTextStyle: { color: COLORS.white },
+                accent: ct.accentColor,
+                borderStyle,
+                labelStyle: { fontSize: '0.75rem', fontWeight: 700, color: ct.accentColor, textTransform: 'uppercase', letterSpacing: '0.05em' }
+            };
+        })()
     };
 
     const currentTemplate = templates[templateId] || templates.professional;

@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Save, Building2, MapPin, Globe, Banknote, Image, Download, Upload } from 'lucide-react';
+import { Save, Building2, MapPin, Globe, Banknote, Image, Download, Upload, Palette } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { storageService } from '../../lib/storageService';
 import { optimizeImage } from '../../lib/imageUtils';
+import InvoiceTemplate from '../../components/InvoiceTemplate';
 
 const Settings = () => {
     const { user, updateProfile } = useAuth();
@@ -19,6 +20,12 @@ const Settings = () => {
         numberPadding: user?.user_metadata?.numberPadding || 4
     }), [user]);
     const [formData, setFormData] = useState(initialFormData);
+
+    const defaultCustomTheme = { headerColor: '#4f46e5', accentColor: '#4f46e5', font: 'sans', corners: 'rounded' };
+    const [customTheme, setCustomTheme] = useState(
+        user?.user_metadata?.custom_template || defaultCustomTheme
+    );
+    const [showTemplatePreview, setShowTemplatePreview] = useState(false);
 
     const handleLogoChange = async (e) => {
         const file = e.target.files[0];
@@ -61,10 +68,10 @@ const Settings = () => {
         e.preventDefault();
         setLoading(true);
 
-        // Map 'name' to both 'name' and 'full_name' to ensure compatibility throughout the app
         const updates = {
             ...formData,
-            full_name: formData.name
+            full_name: formData.name,
+            custom_template: customTheme
         };
 
         await updateProfile(updates);
@@ -299,6 +306,76 @@ const Settings = () => {
                                 />
                             </div>
                         </div>
+                    </div>
+
+                    {/* Custom Template (#8) */}
+                    <div className="pt-6 border-t border-gray-100">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                                    <Palette size={16} className="text-indigo-600" /> Custom Brand Theme
+                                </h3>
+                                <p className="text-xs text-gray-500 mt-0.5">Saved as your 6th template option in the editor</p>
+                            </div>
+                            <button type="button" onClick={() => setShowTemplatePreview(p => !p)}
+                                className="text-xs text-indigo-600 hover:underline">
+                                {showTemplatePreview ? 'Hide Preview' : 'Show Preview'}
+                            </button>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Header Color</label>
+                                <div className="flex items-center gap-2">
+                                    <input type="color" value={customTheme.headerColor}
+                                        onChange={e => setCustomTheme(p => ({ ...p, headerColor: e.target.value }))}
+                                        className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                                    <span className="text-xs font-mono text-gray-500">{customTheme.headerColor}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Accent Color</label>
+                                <div className="flex items-center gap-2">
+                                    <input type="color" value={customTheme.accentColor}
+                                        onChange={e => setCustomTheme(p => ({ ...p, accentColor: e.target.value }))}
+                                        className="w-10 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5" />
+                                    <span className="text-xs font-mono text-gray-500">{customTheme.accentColor}</span>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Font</label>
+                                <select value={customTheme.font}
+                                    onChange={e => setCustomTheme(p => ({ ...p, font: e.target.value }))}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="sans">Sans-serif</option>
+                                    <option value="serif">Serif</option>
+                                    <option value="mono">Monospace</option>
+                                </select>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-gray-600">Corners</label>
+                                <select value={customTheme.corners}
+                                    onChange={e => setCustomTheme(p => ({ ...p, corners: e.target.value }))}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="sharp">Sharp</option>
+                                    <option value="rounded">Rounded</option>
+                                    <option value="pill">Pill</option>
+                                </select>
+                            </div>
+                        </div>
+                        {showTemplatePreview && (
+                            <div className="mt-4 overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+                                <div style={{ transform: 'scale(0.5)', transformOrigin: 'top left', width: '200%', pointerEvents: 'none' }}>
+                                    <InvoiceTemplate
+                                        templateId="custom"
+                                        customTheme={customTheme}
+                                        docData={{ number: 'INV-0001', date: new Date().toISOString().slice(0,10), dueDate: new Date().toISOString().slice(0,10), sender: { name: formData.name || 'Your Business', email: user?.email, address: formData.address }, recipient: { name: 'Sample Client', email: 'client@example.com' }, items: [{ id: 1, description: 'Design Services', quantity: 1, price: 500 }], notes: 'Thank you for your business.', taxRate: 0, discount: 0 }}
+                                        currency={formData.currency || '$'}
+                                        logo={formData.logo}
+                                        docType="Invoice"
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     <div className="pt-6 border-t border-gray-100">

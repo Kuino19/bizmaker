@@ -234,5 +234,52 @@ export const storageService = {
             const clients = getLocal('clients').filter(c => c.id !== id);
             setLocal('clients', clients);
         }
+    },
+
+    // --- Audit Log ---
+    async appendDocumentEvent(id, event) {
+        const newEvent = {
+            ...event,
+            timestamp: new Date().toISOString()
+        };
+
+        if (!isGuest()) {
+            // Fetch existing events, append, and update
+            const { data: current } = await supabase
+                .from('invoices')
+                .select('events')
+                .eq('id', id)
+                .single();
+
+            const existingEvents = Array.isArray(current?.events) ? current.events : [];
+            const updatedEvents = [...existingEvents, newEvent];
+
+            const { error } = await supabase
+                .from('invoices')
+                .update({ events: updatedEvents })
+                .eq('id', id);
+
+            if (error) console.warn('Audit log update failed:', error.message);
+        } else {
+            // localStorage fallback for guests
+            const meta = getObjectLocal('documentMeta');
+            const existing = Array.isArray(meta[id]?.events) ? meta[id].events : [];
+            meta[id] = { ...(meta[id] || {}), events: [...existing, newEvent] };
+            setObjectLocal('documentMeta', meta);
+        }
+    },
+
+    async getDocumentEvents(id) {
+        if (!isGuest()) {
+            const { data } = await supabase
+                .from('invoices')
+                .select('events')
+                .eq('id', id)
+                .single();
+            return Array.isArray(data?.events) ? data.events : [];
+        } else {
+            const meta = getObjectLocal('documentMeta');
+            return Array.isArray(meta[id]?.events) ? meta[id].events : [];
+        }
     }
 };
