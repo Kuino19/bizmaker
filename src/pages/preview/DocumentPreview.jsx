@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Download, Edit, Mail, Share2 } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Edit, Mail, Share2, Loader2 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import toast from 'react-hot-toast';
 import emailjs from '@emailjs/browser';
@@ -45,18 +45,17 @@ const DocumentPreview = () => {
 
         // Delay to ensure rendering (especially images)
         setTimeout(() => {
-            console.log("Starting PDF generation...");
             try {
                 html2pdf().set(opt).from(element).save().then(() => {
                     setIsGenerating(false);
                     toast.success('PDF Downloaded!');
                 }).catch(err => {
-                    console.error('PDF Generation Error Promise:', err);
+                    console.error('PDF Generation Error:', err);
                     setIsGenerating(false);
                     toast.error('Failed: ' + (err.message || 'Unknown Error'));
                 });
             } catch (e) {
-                console.error('PDF Generation Synchronous Error:', e);
+                console.error('PDF Generation Error:', e);
                 setIsGenerating(false);
                 toast.error('Crash: ' + e.message);
             }
@@ -172,7 +171,7 @@ const DocumentPreview = () => {
                         disabled={isSending}
                         className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-3 py-2 text-white rounded-lg shadow-sm transition-all text-xs font-medium ${isSending ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
                     >
-                        <Mail size={16} /> {isSending ? 'Email' : 'Email'}
+                        {isSending ? <><Loader2 size={14} className="animate-spin" /> Sending...</> : <><Mail size={16} /> Email</>}
                     </button>
 
                     <button
@@ -182,20 +181,20 @@ const DocumentPreview = () => {
                         {navigator.share ? <Share2 size={16} /> : <Copy size={16} />} Share
                     </button>
 
-
+                    {/* Download PDF — visible on ALL screen sizes */}
                     <button
                         onClick={generatePDF}
                         disabled={isGenerating}
-                        className={`hidden md:flex flex-1 md:flex-none items-center justify-center gap-2 px-6 py-2 text-white rounded-lg shadow-md transition-all text-xs font-medium ${isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg'}`}
+                        className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 text-white rounded-lg shadow-md transition-all text-xs font-medium ${isGenerating ? 'bg-gray-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg'}`}
                     >
-                        {isGenerating ? '...' : <><Download size={16} /> PDF</>}
+                        {isGenerating ? <><Loader2 size={14} className="animate-spin" /> Generating...</> : <><Download size={16} /> PDF</>}
                     </button>
                 </div>
             </div>
 
             {/* Preview Area */}
-            <div className="flex-1 overflow-auto p-8 flex justify-center">
-                <div className="space-y-4">
+            <div className="flex-1 overflow-auto p-4 md:p-8 flex justify-center">
+                <div className="space-y-4 w-full max-w-4xl">
                     <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                         <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Email Message</label>
                         <textarea
@@ -205,13 +204,15 @@ const DocumentPreview = () => {
                             className="w-full text-sm p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                         />
                     </div>
-                    <InvoiceTemplate
-                        docData={docData}
-                        docType={docType}
-                        currency={currency}
-                        templateId={location.state?.templateId || 'professional'}
-                        logo={logo}
-                    />
+                    <div className="overflow-x-auto">
+                        <InvoiceTemplate
+                            docData={docData}
+                            docType={docType}
+                            currency={currency}
+                            templateId={location.state?.templateId || 'professional'}
+                            logo={logo}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

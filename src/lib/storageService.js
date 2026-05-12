@@ -150,6 +150,21 @@ export const storageService = {
     },
 
     async markDocumentEmailed(id) {
+        // For authenticated users, update emailed_at in Supabase
+        if (!isGuest()) {
+            const { data, error } = await supabase
+                .from('invoices')
+                .update({ emailed_at: new Date().toISOString() })
+                .eq('id', id)
+                .select();
+            if (error) {
+                // Supabase may not have this column yet — fall back gracefully
+                console.warn('emailed_at column not found, falling back to localStorage:', error.message);
+            } else {
+                return data?.[0];
+            }
+        }
+        // For guests OR if Supabase update failed, use localStorage
         const meta = getObjectLocal('documentMeta');
         meta[id] = {
             ...(meta[id] || {}),

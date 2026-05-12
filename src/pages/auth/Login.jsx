@@ -1,25 +1,35 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, ArrowRight, UserCircle } from 'lucide-react';
+import { LogIn, ArrowRight, UserCircle, Loader2 } from 'lucide-react';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const { login, continueAsGuest } = useAuth();
     const navigate = useNavigate();
 
     const handleGuestLogin = async () => {
-        const success = await continueAsGuest();
-        if (success) navigate('/dashboard');
+        setIsLoading(true);
+        try {
+            const success = await continueAsGuest();
+            if (success) navigate('/dashboard');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        const success = await login(email, password);
-        if (success) {
-            localStorage.setItem('biometric_email', email);
-            navigate('/dashboard');
+        setIsLoading(true);
+        try {
+            const success = await login(email, password);
+            if (success) {
+                navigate('/dashboard');
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -46,7 +56,8 @@ const Login = () => {
                         <input
                             type="email"
                             required
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white/50"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                             placeholder="you@company.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -58,7 +69,8 @@ const Login = () => {
                         <input
                             type="password"
                             required
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white/50"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -67,15 +79,17 @@ const Login = () => {
 
                     <button
                         type="submit"
-                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
+                        disabled={isLoading}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20"
                     >
-                        Sign In <ArrowRight size={18} />
+                        {isLoading ? <><Loader2 size={18} className="animate-spin" /> Signing In...</> : <>Sign In <ArrowRight size={18} /></>}
                     </button>
 
                     <button
                         type="button"
                         onClick={handleGuestLogin}
-                        className="w-full bg-white hover:bg-gray-50 text-indigo-600 font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 border-2 border-indigo-100 mt-4"
+                        disabled={isLoading}
+                        className="w-full bg-white hover:bg-gray-50 disabled:opacity-60 text-indigo-600 font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 border-2 border-indigo-100 mt-4"
                     >
                         <UserCircle size={20} /> Continue as Guest
                     </button>

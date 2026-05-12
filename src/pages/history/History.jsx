@@ -19,6 +19,7 @@ const History = ({ typeFilter }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [sortBy, setSortBy] = useState('updated');
+    const userCurrency = user?.user_metadata?.currency || '$';
     const navigate = useNavigate();
 
     const fetchDocuments = useCallback(async () => {
@@ -228,7 +229,7 @@ const History = ({ typeFilter }) => {
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-bold text-gray-900">
-                                        {inv.currency}{inv.total?.toFixed(2)}
+                                        {inv.currency || userCurrency}{inv.total?.toFixed(2)}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">

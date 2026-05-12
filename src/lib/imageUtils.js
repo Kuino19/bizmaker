@@ -9,8 +9,12 @@
 export const optimizeImage = async (imageSource, { maxWidth = 400, quality = 0.8 } = {}) => {
     return new Promise((resolve, reject) => {
         const img = new Image();
-        
+        let objectUrl = null;
+
         img.onload = () => {
+            // Revoke object URL to free memory
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+
             const canvas = document.createElement('canvas');
             let width = img.width;
             let height = img.height;
@@ -37,11 +41,15 @@ export const optimizeImage = async (imageSource, { maxWidth = 400, quality = 0.8
             }, 'image/jpeg', quality);
         };
 
-        img.onerror = (err) => reject(err);
+        img.onerror = (err) => {
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+            reject(err);
+        };
 
         // Handle source type
         if (imageSource instanceof File || imageSource instanceof Blob) {
-            img.src = URL.createObjectURL(imageSource);
+            objectUrl = URL.createObjectURL(imageSource);
+            img.src = objectUrl;
         } else if (typeof imageSource === 'string') {
             img.src = imageSource;
         } else {

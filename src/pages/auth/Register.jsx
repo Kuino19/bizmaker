@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
-import { UserPlus, ArrowRight } from 'lucide-react';
+import { UserPlus, ArrowRight, Loader2 } from 'lucide-react';
 
 const Register = () => {
     const [name, setName] = useState('');
@@ -10,13 +10,19 @@ const Register = () => {
     const [password, setPassword] = useState('');
     const [country, setCountry] = useState('US');
     const [currency, setCurrency] = useState('$');
+    const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (await register(name, email, password, country, currency, address)) {
-            navigate('/dashboard');
+        setIsLoading(true);
+        try {
+            if (await register(name, email, password, country, currency, address)) {
+                navigate('/dashboard');
+            }
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -43,7 +49,8 @@ const Register = () => {
                         <input
                             type="text"
                             required
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                             placeholder="My Awesome Business"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
@@ -55,7 +62,8 @@ const Register = () => {
                         <input
                             type="email"
                             required
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                             placeholder="you@company.com"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
@@ -67,7 +75,8 @@ const Register = () => {
                         <input
                             type="text"
                             required
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                             placeholder="123 Business St, City, Country"
                             value={address}
                             onChange={(e) => setAddress(e.target.value)}
@@ -78,7 +87,8 @@ const Register = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
                             <select
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
+                                disabled={isLoading}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                                 value={country}
                                 onChange={(e) => setCountry(e.target.value)}
                             >
@@ -93,7 +103,8 @@ const Register = () => {
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Currency</label>
                             <select
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
+                                disabled={isLoading}
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                                 value={currency}
                                 onChange={(e) => setCurrency(e.target.value)}
                             >
@@ -112,7 +123,8 @@ const Register = () => {
                         <input
                             type="password"
                             required
-                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50"
+                            disabled={isLoading}
+                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all outline-none bg-white/50 disabled:opacity-60"
                             placeholder="••••••••"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -121,9 +133,10 @@ const Register = () => {
 
                     <button
                         type="submit"
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
+                        disabled={isLoading}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20"
                     >
-                        Create Account <ArrowRight size={18} />
+                        {isLoading ? <><Loader2 size={18} className="animate-spin" /> Creating Account...</> : <>Create Account <ArrowRight size={18} /></>}
                     </button>
                 </form>
 

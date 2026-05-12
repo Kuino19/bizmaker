@@ -3,6 +3,7 @@ import { storageService } from '../../lib/storageService';
 import { useAuth } from '../../context/AuthContext';
 import { Download, FileText, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { escapeCsvValue, mapStoredDocumentToEditor, mapStoredDocumentToSummary, STATUS_STYLES } from '../../lib/documentUtils';
 
 const LedgerItem = ({ item, currency, onDownload }) => (
@@ -51,6 +52,7 @@ const Finance = () => {
             }
         } catch (error) {
             console.error('Error fetching bookings:', error);
+            toast.error('Failed to load financial data');
         } finally {
             setIsLoading(false);
         }

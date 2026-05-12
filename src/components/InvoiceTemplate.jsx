@@ -271,7 +271,7 @@ const InvoiceTemplate = ({ docData, currency = '$', templateId = 'professional',
 
                     {/* Footer Branding */}
                     <div style={{ marginTop: '2rem', paddingTop: '1rem', borderTop: `1px solid ${COLORS.gray200}`, textAlign: 'center' }}>
-                        <p style={{ fontSize: '0.75rem', color: COLORS.gray400 }}>Made by Kuino</p>
+                        <p style={{ fontSize: '0.75rem', color: COLORS.gray400 }}>Generated with BizMaker</p>
                     </div>
                 </div>
             </div>
